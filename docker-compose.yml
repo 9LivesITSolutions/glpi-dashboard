@@ -1,0 +1,61 @@
+services:
+
+  # ── Base MySQL interne — stocke config + utilisateurs dashboard ─────────────
+  app-db:
+    image: mysql:8.0
+    container_name: glpi_dashboard_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: glpi_dashboard_app
+      MYSQL_USER: ${APP_DB_USER}
+      MYSQL_PASSWORD: ${APP_DB_PASSWORD}
+    volumes:
+      - app_db_data:/var/lib/mysql
+    networks:
+      - glpi_dashboard_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend API Node.js ────────────────────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: glpi_dashboard_api
+    restart: unless-stopped
+    depends_on:
+      app-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      APP_DB_HOST: app-db
+      APP_DB_PORT: 3306
+      APP_DB_NAME: glpi_dashboard_app
+      APP_DB_USER: ${APP_DB_USER}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+    networks:
+      - glpi_dashboard_net
+
+  # ── Frontend React + Nginx ─────────────────────────────────────────────────
+  frontend:
+    build: ./frontend
+    container_name: glpi_dashboard_front
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - glpi_dashboard_net
+
+networks:
+  glpi_dashboard_net:
+    driver: bridge
+
+volumes:
+  app_db_data:
