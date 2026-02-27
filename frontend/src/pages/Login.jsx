@@ -23,7 +23,6 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      // Mode auto : le backend détecte LDAP ou local
       await login(username.trim(), password, 'auto');
     } catch (err) {
       setError(err.response?.data?.error || 'Identifiants invalides');
@@ -32,423 +31,384 @@ export default function Login() {
   };
 
   return (
-    <div className="login-root">
-      {/* Fond animé */}
-      <div className="login-bg">
-        <div className="login-bg__grid" />
-        <div className="login-bg__glow login-bg__glow--1" />
-        <div className="login-bg__glow login-bg__glow--2" />
-        <div className="login-bg__glow login-bg__glow--3" />
-      </div>
+    <div className="lr-root">
+      {/* ── Panneau gauche ─────────────────────────────────────────────── */}
+      <div className="lr-left">
+        <div className="lr-glow lr-glow--1" />
+        <div className="lr-glow lr-glow--2" />
+        <div className="lr-grid" />
 
-      {/* Contenu centré */}
-      <div className={`login-card ${mounted ? 'login-card--visible' : ''}`}>
-
-        {/* Logo + titre */}
-        <div className="login-header">
-          <div className="login-logo">
-            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="40" height="40" rx="10" fill="url(#grad)" />
-              <rect x="8" y="22" width="5" height="11" rx="1.5" fill="white" fillOpacity=".9" />
-              <rect x="16" y="15" width="5" height="18" rx="1.5" fill="white" />
-              <rect x="24" y="9" width="5" height="24" rx="1.5" fill="white" fillOpacity=".7" />
-              <defs>
-                <linearGradient id="grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#3b6fd4" />
-                  <stop offset="1" stopColor="#1e3a8a" />
-                </linearGradient>
-              </defs>
-            </svg>
+        <div className="lr-left-inner">
+          {/* Logo */}
+          <div className="lr-logo">
+            <div className="lr-logo-icon">
+              <svg viewBox="0 0 40 40" fill="none">
+                <rect x="6"  y="22" width="6" height="12" rx="2" fill="white" fillOpacity=".85"/>
+                <rect x="15" y="14" width="6" height="20" rx="2" fill="white"/>
+                <rect x="24" y="7"  width="6" height="27" rx="2" fill="white" fillOpacity=".65"/>
+              </svg>
+            </div>
+            <div>
+              <div className="lr-logo-name">GLPI Dashboard</div>
+              <div className="lr-logo-tag">9Lives IT Solutions</div>
+            </div>
           </div>
-          <div>
-            <h1 className="login-title">GLPI Dashboard</h1>
-            <p className="login-subtitle">Tableau de bord Helpdesk</p>
+
+          {/* Héro */}
+          <div className="lr-hero">
+            <h1 className="lr-hero-title">
+              Tableau de bord<br/>
+              <span className="lr-hero-accent">Helpdesk</span>
+            </h1>
+            <p className="lr-hero-desc">
+              Suivi en temps réel des tickets GLPI — KPIs, SLA, performance
+              techniciens et authentification Active Directory intégrée.
+            </p>
+          </div>
+
+          {/* Features */}
+          <div className="lr-features">
+            {[
+              { icon: '📊', text: 'KPIs et SLA en temps réel' },
+              { icon: '🔗', text: 'Authentification Active Directory' },
+              { icon: '👤', text: 'Stats détaillées par technicien' },
+              { icon: '⏱',  text: 'Temps actif calculé hors pauses' },
+            ].map((f, i) => (
+              <div className="lr-feature" key={i}>
+                <div className="lr-feature-icon">{f.icon}</div>
+                <span className="lr-feature-text">{f.text}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="lr-footer">
+            Accès réservé au personnel autorisé · DSI 9Lives IT Solutions
           </div>
         </div>
+      </div>
 
-        {/* Séparateur */}
-        <div className="login-divider" />
-
-        {/* Formulaire */}
-        <form onSubmit={handleSubmit} className="login-form" noValidate>
-          <div className="login-field">
-            <label className="login-label" htmlFor="username">Identifiant</label>
-            <div className="login-input-wrap">
-              <span className="login-input-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-              </span>
-              <input
-                id="username"
-                ref={usernameRef}
-                className="login-input"
-                type="text"
-                value={username}
-                onChange={e => { setUsername(e.target.value); setError(''); }}
-                autoComplete="username"
-                placeholder="Votre identifiant"
-                spellCheck={false}
-              />
-            </div>
+      {/* ── Panneau droit ──────────────────────────────────────────────── */}
+      <div className="lr-right">
+        <div className={`lr-form-block ${mounted ? 'lr-form-block--in' : ''}`}>
+          <div className="lr-form-header">
+            <h2 className="lr-form-title">Connexion</h2>
           </div>
 
-          <div className="login-field">
-            <label className="login-label" htmlFor="password">Mot de passe</label>
-            <div className="login-input-wrap">
-              <span className="login-input-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-              </span>
-              <input
-                id="password"
-                className="login-input"
-                type={showPwd ? 'text' : 'password'}
-                value={password}
-                onChange={e => { setPassword(e.target.value); setError(''); }}
-                autoComplete="current-password"
-                placeholder="••••••••"
-              />
-              <button
-                type="button"
-                className="login-input-toggle"
-                onClick={() => setShowPwd(v => !v)}
-                tabIndex={-1}
-                aria-label={showPwd ? 'Masquer' : 'Afficher'}
-              >
-                {showPwd ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
+          <form onSubmit={handleSubmit} noValidate>
+            {/* Identifiant */}
+            <div className="lr-field">
+              <label className="lr-label" htmlFor="username">Identifiant</label>
+              <div className="lr-input-wrap">
+                <span className="lr-input-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
                   </svg>
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                )}
-              </button>
+                </span>
+                <input
+                  id="username"
+                  ref={usernameRef}
+                  className="lr-input"
+                  type="text"
+                  value={username}
+                  onChange={e => { setUsername(e.target.value); setError(''); }}
+                  autoComplete="username"
+                  placeholder="identifiant"
+                  spellCheck={false}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Message d'erreur */}
-          <div className={`login-error ${error ? 'login-error--visible' : ''}`}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            {error}
-          </div>
+            {/* Mot de passe */}
+            <div className="lr-field">
+              <label className="lr-label" htmlFor="password">Mot de passe</label>
+              <div className="lr-input-wrap">
+                <span className="lr-input-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </span>
+                <input
+                  id="password"
+                  className="lr-input"
+                  type={showPwd ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setError(''); }}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  className="lr-pwd-toggle"
+                  onClick={() => setShowPwd(v => !v)}
+                  tabIndex={-1}
+                >
+                  {showPwd ? (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  ) : (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
 
-          {/* Bouton */}
-          <button
-            type="submit"
-            className="login-btn"
-            disabled={loading || !username.trim() || !password}
-          >
-            {loading ? (
-              <span className="login-btn__spinner" />
-            ) : (
-              <>
-                <span>Se connecter</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                  <polyline points="12 5 19 12 12 19"/>
+            {/* Erreur */}
+            {error && (
+              <div className="lr-error">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-              </>
+                {error}
+              </div>
             )}
-          </button>
-        </form>
 
-        {/* Footer */}
-        <p className="login-footer">
-          Accès sécurisé · Authentification unifiée AD / Local
-        </p>
+            <button
+              type="submit"
+              className="lr-btn"
+              disabled={loading || !username.trim() || !password}
+            >
+              {loading
+                ? <span className="lr-spinner" />
+                : <><span>→ Se connecter</span></>
+              }
+            </button>
+          </form>
+
+          <div className="lr-info">
+            <strong>Authentification unifiée</strong><br/>
+            Utilisez vos identifiants Windows habituels. En l'absence de compte AD,
+            un compte local de secours est disponible.
+          </div>
+        </div>
       </div>
 
       <style>{`
-        /* ── Reset & root ─────────────────────────────────────────────────── */
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        .login-root {
+        .lr-root {
+          display: flex;
           min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
           font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-          background: #060d1f;
+          background: #0b1529;
+          overflow: hidden;
+        }
+
+        /* ── Gauche ─────────────────────────────── */
+        .lr-left {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          padding: 2.5rem 3rem;
           position: relative;
           overflow: hidden;
-          padding: 1.5rem;
+          background: #0b1529;
         }
-
-        /* ── Fond animé ───────────────────────────────────────────────────── */
-        .login-bg {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-        }
-
-        .login-bg__grid {
-          position: absolute;
-          inset: 0;
+        .lr-grid {
+          position: absolute; inset: 0;
           background-image:
-            linear-gradient(rgba(59,111,212,.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(59,111,212,.06) 1px, transparent 1px);
-          background-size: 48px 48px;
-          mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 100%);
-        }
-
-        .login-bg__glow {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(80px);
-          animation: glow-pulse 8s ease-in-out infinite;
-        }
-        .login-bg__glow--1 {
-          width: 500px; height: 500px;
-          top: -150px; left: -100px;
-          background: radial-gradient(circle, rgba(29,78,216,.35) 0%, transparent 70%);
-          animation-delay: 0s;
-        }
-        .login-bg__glow--2 {
-          width: 400px; height: 400px;
-          bottom: -100px; right: -80px;
-          background: radial-gradient(circle, rgba(16,50,150,.3) 0%, transparent 70%);
-          animation-delay: -3s;
-        }
-        .login-bg__glow--3 {
-          width: 300px; height: 300px;
-          top: 40%; left: 55%;
-          background: radial-gradient(circle, rgba(99,102,241,.15) 0%, transparent 70%);
-          animation-delay: -5s;
-        }
-
-        @keyframes glow-pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50%       { opacity: .7; transform: scale(1.05); }
-        }
-
-        /* ── Card ─────────────────────────────────────────────────────────── */
-        .login-card {
-          position: relative;
-          width: 100%;
-          max-width: 420px;
-          background: rgba(255,255,255,.035);
-          border: 1px solid rgba(255,255,255,.08);
-          border-radius: 20px;
-          padding: 2.5rem;
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          box-shadow:
-            0 0 0 1px rgba(59,111,212,.12),
-            0 32px 64px rgba(0,0,0,.5),
-            inset 0 1px 0 rgba(255,255,255,.06);
-
-          opacity: 0;
-          transform: translateY(24px);
-          transition: opacity .5s ease, transform .5s ease;
-        }
-        .login-card--visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
-
-        /* ── Header ───────────────────────────────────────────────────────── */
-        .login-header {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          margin-bottom: 1.75rem;
-        }
-
-        .login-logo {
-          width: 48px;
-          height: 48px;
-          flex-shrink: 0;
-          filter: drop-shadow(0 4px 12px rgba(59,111,212,.5));
-        }
-        .login-logo svg { width: 100%; height: 100%; }
-
-        .login-title {
-          font-size: 1.375rem;
-          font-weight: 700;
-          color: #f0f4ff;
-          letter-spacing: -.02em;
-          line-height: 1.2;
-        }
-
-        .login-subtitle {
-          font-size: .78rem;
-          color: rgba(148,163,184,.7);
-          margin-top: .2rem;
-          letter-spacing: .01em;
-        }
-
-        /* ── Divider ──────────────────────────────────────────────────────── */
-        .login-divider {
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,.08) 40%, rgba(255,255,255,.08) 60%, transparent);
-          margin-bottom: 1.75rem;
-        }
-
-        /* ── Form ─────────────────────────────────────────────────────────── */
-        .login-form { display: flex; flex-direction: column; gap: 1.1rem; }
-
-        .login-field { display: flex; flex-direction: column; gap: .4rem; }
-
-        .login-label {
-          font-size: .75rem;
-          font-weight: 600;
-          color: rgba(148,163,184,.9);
-          letter-spacing: .06em;
-          text-transform: uppercase;
-        }
-
-        .login-input-wrap {
-          position: relative;
-          display: flex;
-          align-items: center;
-        }
-
-        .login-input-icon {
-          position: absolute;
-          left: .875rem;
-          color: rgba(148,163,184,.5);
-          display: flex;
-          align-items: center;
+            linear-gradient(rgba(30,77,183,.07) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(30,77,183,.07) 1px, transparent 1px);
+          background-size: 52px 52px;
           pointer-events: none;
         }
+        .lr-glow {
+          position: absolute; border-radius: 50%;
+          pointer-events: none; filter: blur(90px);
+        }
+        .lr-glow--1 {
+          width: 520px; height: 520px; top: -160px; left: -120px;
+          background: radial-gradient(circle, rgba(30,77,183,.28) 0%, transparent 65%);
+          animation: lr-breathe 9s ease-in-out infinite;
+        }
+        .lr-glow--2 {
+          width: 380px; height: 380px; bottom: -80px; right: 60px;
+          background: radial-gradient(circle, rgba(15,50,130,.22) 0%, transparent 65%);
+          animation: lr-breathe 11s ease-in-out infinite reverse;
+        }
+        @keyframes lr-breathe {
+          0%,100% { opacity:1; transform:scale(1); }
+          50% { opacity:.65; transform:scale(1.06); }
+        }
 
-        .login-input {
-          width: 100%;
-          padding: .75rem .875rem .75rem 2.5rem;
-          background: rgba(255,255,255,.04);
-          border: 1px solid rgba(255,255,255,.08);
+        .lr-left-inner {
+          position: relative; z-index: 1;
+          display: flex; flex-direction: column;
+          height: 100%; justify-content: space-between;
+        }
+
+        .lr-logo {
+          display: flex; align-items: center; gap: 1rem;
+          animation: lr-up .6s ease .1s both;
+        }
+        .lr-logo-icon {
+          width: 48px; height: 48px;
+          background: linear-gradient(135deg, #1e4db7, #0f2f7a);
+          border-radius: 12px;
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 4px 20px rgba(30,77,183,.4);
+          flex-shrink: 0;
+        }
+        .lr-logo-icon svg { width: 26px; height: 26px; }
+        .lr-logo-name { font-size: 1.05rem; font-weight: 700; color: #dce8ff; letter-spacing: -.01em; }
+        .lr-logo-tag  { font-size: .7rem; color: #7b93b8; margin-top: .15rem; }
+
+        .lr-hero { animation: lr-up .7s ease .25s both; }
+        .lr-hero-title {
+          font-size: 2.5rem; font-weight: 800; color: #e8f0ff;
+          line-height: 1.15; letter-spacing: -.03em; margin-bottom: 1rem;
+        }
+        .lr-hero-accent {
+          background: linear-gradient(90deg, #5b8af5, #93b4ff);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        .lr-hero-desc { font-size: .88rem; color: #7b93b8; line-height: 1.65; max-width: 400px; }
+
+        .lr-features {
+          display: flex; flex-direction: column; gap: .65rem;
+          animation: lr-up .7s ease .4s both;
+        }
+        .lr-feature {
+          display: flex; align-items: center; gap: .875rem;
+          padding: .65rem 1rem;
+          background: rgba(30,77,183,.08);
+          border: 1px solid rgba(30,77,183,.15);
           border-radius: 10px;
-          color: #e2e8f0;
-          font-size: .9rem;
-          font-family: inherit;
-          outline: none;
-          transition: border-color .2s, background .2s, box-shadow .2s;
+          transition: background .2s, border-color .2s;
         }
-        .login-input::placeholder { color: rgba(148,163,184,.35); }
-        .login-input:focus {
-          border-color: rgba(59,111,212,.6);
-          background: rgba(59,111,212,.06);
-          box-shadow: 0 0 0 3px rgba(59,111,212,.12);
+        .lr-feature:hover { background: rgba(30,77,183,.14); border-color: rgba(30,77,183,.28); }
+        .lr-feature-icon {
+          width: 30px; height: 30px;
+          background: rgba(30,77,183,.2);
+          border-radius: 7px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: .88rem; flex-shrink: 0;
+        }
+        .lr-feature-text { font-size: .82rem; color: #a8bcd4; font-weight: 500; }
+
+        .lr-footer {
+          font-size: .68rem; color: rgba(123,147,184,.35); letter-spacing: .03em;
+          animation: lr-up .5s ease .55s both;
         }
 
-        .login-input-toggle {
-          position: absolute;
-          right: .875rem;
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: rgba(148,163,184,.4);
-          display: flex;
-          align-items: center;
-          padding: .25rem;
-          border-radius: 4px;
-          transition: color .15s;
-        }
-        .login-input-toggle:hover { color: rgba(148,163,184,.8); }
-
-        /* ── Error ────────────────────────────────────────────────────────── */
-        .login-error {
-          display: flex;
-          align-items: center;
-          gap: .5rem;
-          font-size: .8rem;
-          color: #f87171;
-          background: rgba(248,113,113,.08);
-          border: 1px solid rgba(248,113,113,.2);
-          border-radius: 8px;
-          padding: .625rem .875rem;
-          min-height: 0;
-          max-height: 0;
-          overflow: hidden;
-          opacity: 0;
-          transition: max-height .25s ease, opacity .25s ease, padding .25s ease;
-          padding-top: 0; padding-bottom: 0;
-        }
-        .login-error--visible {
-          max-height: 60px;
-          opacity: 1;
-          padding: .625rem .875rem;
-        }
-
-        /* ── Submit button ────────────────────────────────────────────────── */
-        .login-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: .625rem;
-          width: 100%;
-          padding: .825rem 1.5rem;
-          margin-top: .25rem;
-          background: linear-gradient(135deg, #2563eb, #1d4ed8);
-          color: white;
-          font-size: .9rem;
-          font-weight: 600;
-          font-family: inherit;
-          letter-spacing: .01em;
-          border: none;
-          border-radius: 10px;
-          cursor: pointer;
-          transition: transform .15s, box-shadow .15s, opacity .15s;
-          box-shadow: 0 4px 16px rgba(37,99,235,.35), 0 1px 0 rgba(255,255,255,.1) inset;
+        /* ── Droite ─────────────────────────────── */
+        .lr-right {
+          flex: 0 0 420px;
+          width: 420px;
+          background: #f7f9fc;
+          display: flex; flex-direction: column; justify-content: center;
+          padding: 3rem 3.5rem;
           position: relative;
-          overflow: hidden;
         }
-        .login-btn::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(255,255,255,.1), transparent);
-          opacity: 0;
-          transition: opacity .2s;
+        .lr-right::before {
+          content: ''; position: absolute;
+          left: 0; top: 10%; bottom: 10%; width: 1px;
+          background: linear-gradient(180deg, transparent, rgba(30,77,183,.12) 30%, rgba(30,77,183,.12) 70%, transparent);
         }
-        .login-btn:hover:not(:disabled)::before { opacity: 1; }
-        .login-btn:hover:not(:disabled) {
+
+        .lr-form-block {
+          max-width: 340px; width: 100%;
+          opacity: 0; transform: translateX(20px);
+          transition: opacity .65s ease .3s, transform .65s ease .3s;
+        }
+        .lr-form-block--in { opacity: 1; transform: translateX(0); }
+
+        .lr-form-header { margin-bottom: 2rem; }
+        .lr-form-title {
+          font-size: 1.75rem; font-weight: 800;
+          color: #0f1e38; letter-spacing: -.03em;
+        }
+
+        .lr-field { margin-bottom: 1.25rem; }
+        .lr-label {
+          display: block; font-size: .68rem; font-weight: 700;
+          color: #4a6080; letter-spacing: .09em;
+          text-transform: uppercase; margin-bottom: .45rem;
+        }
+        .lr-input-wrap { position: relative; display: flex; align-items: center; }
+        .lr-input-icon {
+          position: absolute; left: .875rem;
+          color: #a0b4cc; display: flex; align-items: center; pointer-events: none;
+        }
+        .lr-input {
+          width: 100%; padding: .8rem 1rem .8rem 2.5rem;
+          border: 1.5px solid #dce6f0; border-radius: 10px;
+          font-size: .88rem; font-family: inherit; color: #0f1e38;
+          background: white; outline: none;
+          transition: border-color .2s, box-shadow .2s;
+        }
+        .lr-input::placeholder { color: #b0c4d8; }
+        .lr-input:focus {
+          border-color: #2563eb;
+          box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+        }
+        .lr-pwd-toggle {
+          position: absolute; right: .875rem;
+          background: none; border: none; cursor: pointer;
+          color: #a0b4cc; display: flex; align-items: center;
+          padding: .2rem; transition: color .15s;
+        }
+        .lr-pwd-toggle:hover { color: #4a6080; }
+
+        .lr-error {
+          display: flex; align-items: center; gap: .5rem;
+          padding: .65rem .875rem; margin-bottom: 1rem;
+          background: #fef2f2; border: 1px solid #fecaca;
+          border-radius: 8px; color: #dc2626; font-size: .8rem;
+        }
+
+        .lr-btn {
+          width: 100%; padding: .875rem 1.5rem;
+          background: linear-gradient(135deg, #1e4db7, #2563eb);
+          color: white; font-size: .9rem; font-weight: 700;
+          font-family: inherit; letter-spacing: .01em;
+          border: none; border-radius: 10px; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 4px 18px rgba(30,77,183,.35);
+          transition: transform .15s, box-shadow .15s, opacity .15s;
+          margin-top: .25rem;
+        }
+        .lr-btn:hover:not(:disabled) {
           transform: translateY(-1px);
-          box-shadow: 0 8px 24px rgba(37,99,235,.45), 0 1px 0 rgba(255,255,255,.1) inset;
+          box-shadow: 0 8px 26px rgba(30,77,183,.45);
         }
-        .login-btn:active:not(:disabled) { transform: translateY(0); }
-        .login-btn:disabled {
-          opacity: .45;
-          cursor: not-allowed;
-          transform: none;
-        }
+        .lr-btn:disabled { opacity: .45; cursor: not-allowed; }
 
-        .login-btn__spinner {
-          width: 18px;
-          height: 18px;
+        .lr-spinner {
+          width: 18px; height: 18px;
           border: 2px solid rgba(255,255,255,.3);
-          border-top-color: white;
-          border-radius: 50%;
-          animation: spin .7s linear infinite;
+          border-top-color: white; border-radius: 50%;
+          animation: lr-spin .7s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes lr-spin { to { transform: rotate(360deg); } }
 
-        /* ── Footer ───────────────────────────────────────────────────────── */
-        .login-footer {
-          text-align: center;
-          font-size: .72rem;
-          color: rgba(148,163,184,.35);
-          margin-top: 1.5rem;
-          letter-spacing: .02em;
+        .lr-info {
+          margin-top: 1.5rem; padding: .875rem 1rem;
+          background: #eef3fb; border-radius: 10px;
+          border: 1px solid #dce6f0;
+          font-size: .75rem; color: #6b87a8; line-height: 1.55;
+        }
+        .lr-info strong { color: #4a6080; }
+
+        @keyframes lr-up {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
 
-        /* ── Responsive ───────────────────────────────────────────────────── */
-        @media (max-width: 480px) {
-          .login-card { padding: 2rem 1.5rem; }
-          .login-title { font-size: 1.2rem; }
+        @media (max-width: 768px) {
+          .lr-root { flex-direction: column; overflow: auto; }
+          .lr-left { flex: none; padding: 2rem; min-height: 44vh; }
+          .lr-right { flex: none; padding: 2rem; }
+          .lr-hero-title { font-size: 1.8rem; }
+          .lr-form-block { max-width: 100%; }
         }
       `}</style>
     </div>

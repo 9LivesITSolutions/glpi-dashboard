@@ -63,7 +63,13 @@ router.get('/summary', authMiddleware, async (req, res) => {
     const manualTickets = resolved.filter(
       t => !t.slas_id_ttr || t.slas_id_ttr === 0 || !t.time_to_resolve
     );
-    const logsMap = await loadStatusLogs(db, manualTickets.map(t => t.id));
+    let logsMap = new Map();
+    try {
+      logsMap = await loadStatusLogs(db, manualTickets.map(t => t.id));
+    } catch (logsErr) {
+      // glpi_tickets_logs absente ou inaccessible — fallback sans déduction des pauses
+      console.warn('[SLA] glpi_tickets_logs inaccessible, calcul sans déduction des pauses:', logsErr.message);
+    }
 
     // Calculer le résultat SLA pour chaque ticket
     const results = resolved.map(ticket => {

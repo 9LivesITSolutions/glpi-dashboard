@@ -61,7 +61,12 @@ router.get('/:userId', authMiddleware, async (req, res) => {
 
     // Charger les logs de pause pour les tickets résolus
     const resolvedTickets = allTickets.filter(t => [5, 6].includes(t.status) && t.solvedate);
-    const logsMap = await loadStatusLogs(db, resolvedTickets.map(t => t.id));
+    let logsMap = new Map();
+    try {
+      logsMap = await loadStatusLogs(db, resolvedTickets.map(t => t.id));
+    } catch (logsErr) {
+      console.warn("[TECH] glpi_tickets_logs inaccessible:", logsErr.message);
+    }
     const enrichedResolved = enrichWithActiveDuration(resolvedTickets, logsMap);
     const activeStats = computeActiveStats(enrichedResolved);
 

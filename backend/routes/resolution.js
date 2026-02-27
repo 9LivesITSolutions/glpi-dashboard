@@ -36,7 +36,12 @@ router.get('/average', authMiddleware, async (req, res) => {
       });
     }
 
-    const logsMap = await loadStatusLogs(db, tickets.map(t => t.id));
+    let logsMap = new Map();
+    try {
+      logsMap = await loadStatusLogs(db, tickets.map(t => t.id));
+    } catch (logsErr) {
+      console.warn('[RESOLUTION] glpi_tickets_logs inaccessible, fallback temps brut:', logsErr.message);
+    }
     const enriched = enrichWithActiveDuration(tickets, logsMap);
     const stats    = computeActiveStats(enriched);
 
@@ -72,7 +77,12 @@ router.get('/evolution', authMiddleware, async (req, res) => {
 
     if (tickets.length === 0) return res.json([]);
 
-    const logsMap  = await loadStatusLogs(db, tickets.map(t => t.id));
+    let logsMap = new Map();
+    try {
+      logsMap = await loadStatusLogs(db, tickets.map(t => t.id));
+    } catch (logsErr) {
+      console.warn('[RESOLUTION/EVOL] glpi_tickets_logs inaccessible, fallback temps brut:', logsErr.message);
+    }
     const enriched = enrichWithActiveDuration(tickets, logsMap);
 
     // Grouper par période
@@ -137,7 +147,12 @@ router.get('/by-priority', authMiddleware, async (req, res) => {
 
     if (tickets.length === 0) return res.json([]);
 
-    const logsMap  = await loadStatusLogs(db, tickets.map(t => t.id));
+    let logsMap = new Map();
+    try {
+      logsMap = await loadStatusLogs(db, tickets.map(t => t.id));
+    } catch (logsErr) {
+      console.warn('[RESOLUTION/PRIO] glpi_tickets_logs inaccessible, fallback temps brut:', logsErr.message);
+    }
     const enriched = enrichWithActiveDuration(tickets, logsMap);
 
     // Grouper par priorité
