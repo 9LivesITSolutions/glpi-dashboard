@@ -1,23 +1,33 @@
 /**
  * pauseCalculator.js
- * 
- * Calcule les durées de pause (status=4 En attente) pour un ensemble de tickets
- * en utilisant glpi_tickets_logs (id_search_option=12 = changement de statut).
- * 
- * Optimisé : une seule requête SQL pour tous les tickets de la période,
- * groupement et calcul en JS.
+ *
+ * Calcule les durées de pause (status=4 En attente) pour un ensemble de tickets.
+ *
+ * GLPI stocke l'historique dans glpi_logs :
+ *   itemtype = 'Ticket'
+ *   items_id = id du ticket
+ *   id_search_option = 12  (champ statut)
+ *   old_value / new_value  = labels texte ("En attente", "En cours (assigné)"...)
+ *
+ * Les valeurs possibles du statut dans les logs GLPI sont des labels traduits
+ * OU des entiers selon la version. On détecte les deux.
  */
 
-const STATUS_PENDING = '4';
+// Labels GLPI pour "En attente" selon la langue configurée
+const PENDING_LABELS = ['en attente', 'pending', 'waiting', '4'];
+
+function isPending(val) {
+  if (!val) return false;
+  return PENDING_LABELS.includes(String(val).toLowerCase().trim());
+}
 
 /**
- * Charge les logs de changement de statut pour une liste de ticket IDs
+ * Charge les logs de changement de statut depuis glpi_logs
  * Retourne un Map<ticketId, [{date_mod, old_value, new_value}]>
  */
 async function loadStatusLogs(db, ticketIds) {
   if (!ticketIds || ticketIds.length === 0) return new Map();
 
-  // Découper en chunks de 1000 pour éviter des requêtes trop larges
   const CHUNK = 1000;
   const allLogs = [];
 
@@ -25,13 +35,32 @@ async function loadStatusLogs(db, ticketIds) {
     const chunk = ticketIds.slice(i, i + CHUNK);
     const placeholders = chunk.map(() => '?').join(',');
 
-    const [rows] = await db.execute(`
-      SELECT tickets_id, date_mod, old_value, new_value
-      FROM glpi_tickets_logs
-      WHERE id_search_option = 12
-        AND tickets_id IN (${placeholders})
-      ORDER BY tickets_id ASC, date_mod ASC
-    `, chunk);
+    // Essai 1 : glpi_logs (GLPI 10.x standard)
+    let rows = [];
+    try {
+      [rows] = await db.execute(`
+        SELECT items_id AS tickets_id, date_mod, old_value, new_value
+        FROM glpi_logs
+        WHERE itemtype = 'Ticket'
+          AND id_search_option = 12
+          AND items_id IN (${placeholders})
+        ORDER BY items_id ASC, date_mod ASC
+      `, chunk);
+    } catch (e1) {
+      // Essai 2 : glpi_tickets_logs (certaines versions)
+      try {
+        [rows] = await db.execute(`
+          SELECT tickets_id, date_mod, old_value, new_value
+          FROM glpi_tickets_logs
+          WHERE id_search_option = 12
+            AND tickets_id IN (${placeholders})
+          ORDER BY tickets_id ASC, date_mod ASC
+        `, chunk);
+      } catch (e2) {
+        console.warn('[pauseCalculator] Aucune table de logs accessible:', e2.message);
+        return new Map();
+      }
+    }
 
     allLogs.push(...rows);
   }
@@ -43,8 +72,8 @@ async function loadStatusLogs(db, ticketIds) {
     if (!logsMap.has(id)) logsMap.set(id, []);
     logsMap.get(id).push({
       date_mod:  new Date(row.date_mod),
-      old_value: String(row.old_value),
-      new_value: String(row.new_value),
+      old_value: String(row.old_value ?? ''),
+      new_value: String(row.new_value ?? ''),
     });
   }
 
@@ -53,15 +82,6 @@ async function loadStatusLogs(db, ticketIds) {
 
 /**
  * Calcule la durée totale en pause (minutes) pour un ticket
- * à partir de son historique de statuts trié par date ASC.
- * 
- * Gère plusieurs cycles pause/reprise sur le même ticket.
- * Gère le cas où le ticket est encore en pause au moment du solvedate
- * (ne devrait pas arriver mais sécurité).
- * 
- * @param {Array}  logs       - [{date_mod, old_value, new_value}]
- * @param {Date}   solvedate  - date de résolution du ticket
- * @returns {number}           - minutes en pause
  */
 function calcPauseMinutes(logs, solvedate) {
   if (!logs || logs.length === 0) return 0;
@@ -70,21 +90,19 @@ function calcPauseMinutes(logs, solvedate) {
   let totalPauseMinutes = 0;
 
   for (const log of logs) {
-    // Entrée en pause : new_value devient 4
-    if (log.new_value === STATUS_PENDING && pauseStart === null) {
+    // Entrée en pause
+    if (isPending(log.new_value) && !isPending(log.old_value) && pauseStart === null) {
       pauseStart = log.date_mod;
     }
-
-    // Sortie de pause : old_value était 4 et on passe à autre chose
-    if (log.old_value === STATUS_PENDING && log.new_value !== STATUS_PENDING && pauseStart !== null) {
-      const pauseEnd = log.date_mod;
-      const diff = (pauseEnd - pauseStart) / 60000; // ms → minutes
+    // Sortie de pause
+    if (isPending(log.old_value) && !isPending(log.new_value) && pauseStart !== null) {
+      const diff = (log.date_mod - pauseStart) / 60000;
       if (diff > 0) totalPauseMinutes += diff;
       pauseStart = null;
     }
   }
 
-  // Si on termine encore en pause (cas limite), on compte jusqu'au solvedate
+  // Encore en pause au moment du solvedate (cas limite)
   if (pauseStart !== null && solvedate) {
     const diff = (new Date(solvedate) - pauseStart) / 60000;
     if (diff > 0) totalPauseMinutes += diff;
@@ -94,14 +112,7 @@ function calcPauseMinutes(logs, solvedate) {
 }
 
 /**
- * Enrichit une liste de tickets avec :
- * - pause_minutes        : durée cumulée en pause
- * - active_minutes       : durée active (brut - pause)
- * - active_hours         : même chose en heures arrondies
- * 
- * @param {Array}  tickets  - [{id, date, solvedate, ...}]
- * @param {Map}    logsMap  - Map<ticketId, logs[]>
- * @returns {Array}          - tickets enrichis
+ * Enrichit une liste de tickets avec pause_minutes, active_minutes, active_hours
  */
 function enrichWithActiveDuration(tickets, logsMap) {
   return tickets.map(ticket => {
@@ -109,7 +120,7 @@ function enrichWithActiveDuration(tickets, logsMap) {
     const solvedate  = ticket.solvedate ? new Date(ticket.solvedate) : null;
     const dateCreate = new Date(ticket.date);
 
-    const brut_minutes  = solvedate
+    const brut_minutes = solvedate
       ? Math.max(0, Math.round((solvedate - dateCreate) / 60000))
       : null;
 
@@ -125,27 +136,20 @@ function enrichWithActiveDuration(tickets, logsMap) {
       ...ticket,
       pause_minutes,
       active_minutes,
-      active_hours:  active_minutes !== null ? Math.round(active_minutes / 60 * 100) / 100 : null,
+      active_hours: active_minutes !== null ? Math.round(active_minutes / 60 * 100) / 100 : null,
       brut_minutes,
-      brut_hours:    brut_minutes   !== null ? Math.round(brut_minutes   / 60 * 100) / 100 : null,
+      brut_hours:   brut_minutes   !== null ? Math.round(brut_minutes   / 60 * 100) / 100 : null,
     };
   });
 }
 
 /**
- * Calcule les statistiques agrégées de temps actif sur un tableau de tickets enrichis
+ * Stats agrégées sur un tableau de tickets enrichis
  */
 function computeActiveStats(enrichedTickets) {
   const resolved = enrichedTickets.filter(t => t.active_minutes !== null);
   if (resolved.length === 0) {
-    return {
-      count: 0,
-      avg_active_hours:  null,
-      min_active_hours:  null,
-      max_active_hours:  null,
-      avg_brut_hours:    null,
-      avg_pause_minutes: null,
-    };
+    return { count: 0, avg_active_hours: null, min_active_hours: null, max_active_hours: null, avg_brut_hours: null, avg_pause_minutes: null };
   }
 
   const totalActive = resolved.reduce((s, t) => s + t.active_minutes, 0);
