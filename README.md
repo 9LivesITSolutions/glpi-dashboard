@@ -11,6 +11,7 @@
 
 ## 📋 Sommaire
 
+- [Aperçu](#-aperçu)
 - [Fonctionnalités](#fonctionnalités)
 - [Architecture](#architecture)
 - [Prérequis](#prérequis)
@@ -22,6 +23,16 @@
 - [Structure du projet](#structure-du-projet)
 - [Dépannage](#dépannage)
 - [Contact](#contact)
+
+---
+
+## 📸 Aperçu
+
+### Tableau de bord
+![Dashboard](docs/screenshot-dashboard.png)
+
+### Page de connexion
+![Login](docs/screenshot-login.png)
 
 ---
 
