@@ -19,19 +19,21 @@ const PERIOD_LABELS = {
 };
 
 export default function Dashboard() {
-  const [activeView, setActiveView] = useState('dashboard');
-  const [dateFilter, setDateFilter] = useState(DEFAULT_PERIOD);
-  const [loading, setLoading] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState(null);
-  const [error, setError] = useState(null);
+  const [activeView, setActiveView]     = useState('dashboard');
+  const [dateFilter, setDateFilter]     = useState(DEFAULT_PERIOD);
+  const [loading, setLoading]           = useState(true);
+  const [lastRefresh, setLastRefresh]   = useState(null);
+  const [error, setError]               = useState(null);
 
-  const [summary, setSummary] = useState(null);
-  const [byStatus, setByStatus] = useState([]);
-  const [evolution, setEvolution] = useState([]);
-  const [sla, setSla] = useState({ global_rate: null, by_priority: [] });
-  const [resolution, setResolution] = useState({ average: null, evolution: [] });
+  // Données
+  const [summary, setSummary]       = useState(null);
+  const [byStatus, setByStatus]     = useState([]);
+  const [evolution, setEvolution]   = useState([]);
+  const [sla, setSla]               = useState({ global_rate: null, global_glpi_rate: null, global_manual_rate: null, by_priority: [], meta: {} });
+  const [resAvg, setResAvg]         = useState(null);
+  const [resEvol, setResEvol]       = useState([]);
   const [techniciens, setTechniciens] = useState([]);
-  const [groupes, setGroupes] = useState([]);
+  const [groupes, setGroupes]       = useState([]);
 
   const buildParams = useCallback(() =>
     dateFilter.period === 'custom'
@@ -46,20 +48,22 @@ export default function Dashboard() {
     try {
       const [summaryRes, statusRes, evolutionRes, slaRes, resAvgRes, resEvolRes, techRes, grpRes] =
         await Promise.all([
-          axios.get('/tickets/summary', { params }),
-          axios.get('/tickets/by-status', { params }),
-          axios.get('/tickets/evolution', { params }),
-          axios.get('/sla/summary', { params }),
-          axios.get('/resolution/average', { params }),
+          axios.get('/tickets/summary',      { params }),
+          axios.get('/tickets/by-status',    { params }),
+          axios.get('/tickets/evolution',    { params }),
+          axios.get('/sla/summary',          { params }),
+          axios.get('/resolution/average',   { params }),
           axios.get('/resolution/evolution', { params }),
-          axios.get('/techniciens', { params }),
-          axios.get('/techniciens/groupes', { params }),
+          axios.get('/techniciens',          { params }),
+          axios.get('/techniciens/groupes',  { params }),
         ]);
+
       setSummary(summaryRes.data);
       setByStatus(statusRes.data);
       setEvolution(evolutionRes.data);
       setSla(slaRes.data);
-      setResolution({ average: resAvgRes.data.avg_hours, evolution: resEvolRes.data });
+      setResAvg(resAvgRes.data);
+      setResEvol(resEvolRes.data);
       setTechniciens(techRes.data);
       setGroupes(grpRes.data);
       setLastRefresh(new Date());
@@ -77,6 +81,14 @@ export default function Dashboard() {
   const periodLabel = dateFilter.period === 'custom'
     ? `${dateFilter.from} → ${dateFilter.to}`
     : PERIOD_LABELS[dateFilter.period] || dateFilter.period;
+
+  // KPI temps affiché : actif en priorité, fallback brut
+  const avgDisplay = resAvg?.avg_active_hours ?? resAvg?.avg_brut_hours;
+  const avgLabel   = resAvg?.avg_active_hours
+    ? `brut ${resAvg.avg_brut_hours}h · ⏸ ${
+        Math.round((resAvg.avg_pause_minutes || 0) / 60 * 10) / 10
+      }h pause exclue`
+    : 'Tickets résolus sur la période';
 
   return (
     <Layout activeView={activeView} onViewChange={setActiveView}>
@@ -103,6 +115,7 @@ export default function Dashboard() {
       {/* ── Vue Dashboard globale ─────────────────────────────────────────── */}
       {activeView === 'dashboard' && (
         <>
+          {/* En-tête */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Tableau de bord Helpdesk</h1>
@@ -126,6 +139,7 @@ export default function Dashboard() {
             <DateRangePicker value={dateFilter} onChange={setDateFilter} />
           </div>
 
+          {/* Erreur */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-3">
               <span className="text-xl">⚠️</span>
@@ -137,23 +151,48 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* ── KPIs ──────────────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <KPICard icon="🎫" label="Total tickets"
+            <KPICard
+              icon="🎫" label="Total tickets"
               value={summary?.total?.toLocaleString('fr-FR')}
-              subtitle={`${summary?.in_progress || 0} en cours`} color="blue" loading={loading} />
-            <KPICard icon="✅" label="Résolus / Clôturés"
-              value={summary ? (parseInt(summary.solved || 0) + parseInt(summary.closed || 0)).toLocaleString('fr-FR') : null}
-              subtitle={summary?.total ? `${Math.round(((parseInt(summary.solved || 0) + parseInt(summary.closed || 0)) / summary.total) * 100)}% du total` : ''}
-              color="green" loading={loading} />
-            <KPICard icon="🎯" label="Taux SLA global"
-              value={sla?.global_rate !== null ? `${sla.global_rate}%` : 'N/A'}
-              subtitle="Résolutions dans les délais"
-              color={sla?.global_rate >= 90 ? 'green' : sla?.global_rate >= 70 ? 'amber' : 'red'} loading={loading} />
-            <KPICard icon="⏱" label="Temps moyen résolution"
-              value={resolution.average ? `${resolution.average}h` : 'N/A'}
-              subtitle="Tickets résolus sur la période" color="purple" loading={loading} />
+              subtitle={`${summary?.in_progress || 0} en cours`}
+              color="blue" loading={loading}
+            />
+            <KPICard
+              icon="✅" label="Résolus / Clôturés"
+              value={summary
+                ? (parseInt(summary.solved || 0) + parseInt(summary.closed || 0)).toLocaleString('fr-FR')
+                : null}
+              subtitle={summary?.total
+                ? `${Math.round(((parseInt(summary.solved || 0) + parseInt(summary.closed || 0)) / summary.total) * 100)}% du total`
+                : ''}
+              color="green" loading={loading}
+            />
+            <KPICard
+              icon="🎯" label="Taux SLA global"
+              value={sla?.global_rate !== null && sla?.global_rate !== undefined
+                ? `${sla.global_rate}%`
+                : 'N/A'}
+              subtitle={
+                sla?.meta?.tickets_glpi_sla > 0 && sla?.meta?.tickets_manual_sla > 0
+                  ? `GLPI ${sla.global_glpi_rate ?? '—'}% · Manuel ${sla.global_manual_rate ?? '—'}%`
+                  : sla?.meta?.tickets_glpi_sla > 0
+                    ? `${sla.meta.tickets_glpi_sla} tickets SLA GLPI`
+                    : 'Pauses exclues du délai'
+              }
+              color={sla?.global_rate >= 90 ? 'green' : sla?.global_rate >= 70 ? 'amber' : 'red'}
+              loading={loading}
+            />
+            <KPICard
+              icon="⏱" label="Temps moyen actif"
+              value={avgDisplay ? `${avgDisplay}h` : 'N/A'}
+              subtitle={avgLabel}
+              color="purple" loading={loading}
+            />
           </div>
 
+          {/* ── Graphiques ligne 1 ─────────────────────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
             <div className="lg:col-span-2">
               <TicketsChart data={evolution} loading={loading} />
@@ -161,11 +200,21 @@ export default function Dashboard() {
             <StatutDonut data={byStatus} loading={loading} />
           </div>
 
+          {/* ── Graphiques ligne 2 ─────────────────────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-            <SLAGauge data={sla?.by_priority} globalRate={sla?.global_rate} loading={loading} />
-            <ResolutionChart data={resolution.evolution} average={resolution.average} loading={loading} />
+            <SLAGauge
+              data={sla?.by_priority || []}
+              globalRate={sla}
+              loading={loading}
+            />
+            <ResolutionChart
+              data={resEvol}
+              average={resAvg}
+              loading={loading}
+            />
           </div>
 
+          {/* ── Charge techniciens ────────────────────────────────────────── */}
           <TechnicienChart data={techniciens} groupData={groupes} loading={loading} />
         </>
       )}

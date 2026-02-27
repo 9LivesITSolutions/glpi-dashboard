@@ -138,8 +138,8 @@ function StatsContent({ stats }) {
     },
     {
       metric: 'Rapidité',
-      technicien: team_avg.team_avg_hours && kpi.avg_resolution_hours
-        ? Math.min(100, Math.round((team_avg.team_avg_hours / kpi.avg_resolution_hours) * 50))
+      technicien: team_avg.team_avg_brut_hours && kpi.avg_active_hours
+        ? Math.min(100, Math.round((team_avg.team_avg_brut_hours / kpi.avg_active_hours) * 50))
         : 50,
       equipe: 50,
     },
@@ -167,7 +167,7 @@ function StatsContent({ stats }) {
           </div>
           <div>
             <p className="text-2xl font-bold text-purple-600">
-              {kpi.avg_resolution_hours ? `${kpi.avg_resolution_hours}h` : 'N/A'}
+              {kpi.avg_active_hours ? `${kpi.avg_active_hours}h` : 'N/A'}
             </p>
             <p className="text-xs text-gray-500">Temps moyen</p>
           </div>
@@ -192,8 +192,8 @@ function StatsContent({ stats }) {
             />
             <CompareBar
               label="Temps résolution moyen"
-              value={kpi.avg_resolution_hours}
-              avg={team_avg.team_avg_hours}
+              value={kpi.avg_active_hours}
+              avg={team_avg.team_avg_brut_hours}
               unit="h"
               color="purple"
               lowerIsBetter
