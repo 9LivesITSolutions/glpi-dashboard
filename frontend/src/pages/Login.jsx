@@ -50,7 +50,7 @@ export default function Login() {
             </div>
             <div>
               <div className="lr-logo-name">GLPI Dashboard</div>
-              <div className="lr-logo-tag">9Lives IT Solutions</div>
+              
             </div>
           </div>
 
@@ -82,7 +82,7 @@ export default function Login() {
           </div>
 
           <div className="lr-footer">
-            Accès réservé au personnel autorisé · DSI 9Lives IT Solutions
+            Accès réservé au personnel autorisé · Built by 9Lives IT Solutions
           </div>
         </div>
       </div>
@@ -275,6 +275,7 @@ export default function Login() {
         .lr-features {
           display: flex; flex-direction: column; gap: .65rem;
           animation: lr-up .7s ease .4s both;
+          width: 300px;
         }
         .lr-feature {
           display: flex; align-items: center; gap: .875rem;
