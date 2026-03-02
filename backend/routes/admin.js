@@ -156,4 +156,31 @@ router.put('/users/:id/password', authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
+
+// ── GET /api/admin/glpi-url ───────────────────────────────────────────────────
+router.get('/glpi-url', authMiddleware, adminOnly, async (req, res) => {
+  const url = await getConfig('glpi_url') || '';
+  res.json({ url });
+});
+
+// ── PUT /api/admin/glpi-url ───────────────────────────────────────────────────
+router.put('/glpi-url', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    let { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL requise' });
+    url = url.replace(/\/$/, ''); // retirer le slash final
+    await setConfig('glpi_url', url);
+    res.json({ success: true, url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/admin/glpi-url/public ───────────────────────────────────────────
+// Accessible sans être admin (pour construire les liens dans le listing)
+router.get('/glpi-url/public', authMiddleware, async (req, res) => {
+  const url = await getConfig('glpi_url') || '';
+  res.json({ url });
+});
+
 module.exports = router;

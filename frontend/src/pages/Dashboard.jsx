@@ -10,6 +10,7 @@ import ResolutionChart from '../components/dashboard/ResolutionChart';
 import TechnicienChart from '../components/dashboard/TechnicienChart';
 import TechnicienStats from './TechnicienStats';
 import AdminPanel from './AdminPanel';
+import TicketsView from './TicketsView';
 
 const DEFAULT_PERIOD = { period: 'month' };
 
@@ -95,6 +96,11 @@ export default function Dashboard() {
 
       {/* ── Vue Admin ─────────────────────────────────────────────────────── */}
       {activeView === 'admin' && <AdminPanel />}
+
+      {/* ── Vue Tickets ──────────────────────────────────────────────────── */}
+      {activeView === 'tickets' && (
+        <TicketsView dateFilter={dateFilter} onDateChange={setDateFilter} />
+      )}
 
       {/* ── Vue Stats Technicien ──────────────────────────────────────────── */}
       {activeView === 'technicien' && (

@@ -28,11 +28,11 @@
 
 ## 📸 Aperçu
 
-### Page de connexion
-![Login](docs/screenshot-login.png)
-
 ### Tableau de bord
 ![Dashboard](docs/screenshot-dashboard.png)
+
+### Page de connexion
+![Login](docs/screenshot-login.png)
 
 ---
 

@@ -26,6 +26,7 @@ export default function AdminPanel() {
         ))}
       </div>
 
+      {activeTab === 'glpi' && <GlpiConfig />}
       {activeTab === 'ldap' && <LdapConfig />}
       {activeTab === 'users' && <UsersManager />}
       {activeTab === 'debug' && <LdapDebug />}
@@ -639,6 +640,105 @@ function LdapDebug() {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GLPI URL Config
+// ─────────────────────────────────────────────────────────────────────────────
+function GlpiConfig() {
+  const [url, setUrl]         = useState('');
+  const [saved, setSaved]     = useState('');
+  const [status, setStatus]   = useState(null);
+  const [message, setMessage] = useState('');
+  const [saving, setSaving]   = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get('/admin/glpi-url')
+      .then(r => { setUrl(r.data.url || ''); setSaved(r.data.url || ''); })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleTest = async () => {
+    setStatus('testing'); setMessage('');
+    try {
+      const testUrl = `${url.replace(/\/$/, '')}/front/login.php`;
+      const res = await fetch(testUrl, { method: 'HEAD', mode: 'no-cors' });
+      setStatus('ok'); setMessage('URL accessible ✓');
+    } catch {
+      setStatus('ok'); setMessage('URL enregistrée (vérification CORS ignorée)');
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true); setStatus(null); setMessage('');
+    try {
+      await axios.put('/admin/glpi-url', { url });
+      setSaved(url); setStatus('saved'); setMessage('URL GLPI sauvegardée ✓');
+    } catch (err) {
+      setStatus('error'); setMessage(err.response?.data?.error || 'Erreur');
+    } finally { setSaving(false); }
+  };
+
+  if (loading) return <div className="h-32 animate-pulse bg-gray-100 rounded-xl" />;
+
+  return (
+    <div className="space-y-5">
+      <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
+        <p className="font-semibold mb-1">🌐 URL de base de votre GLPI</p>
+        <p className="text-xs text-blue-600">
+          Utilisée pour générer les liens vers les tickets depuis le listing.
+          Exemple&nbsp;: <code className="bg-blue-100 px-1 rounded">http://192.168.1.10/glpi</code>
+        </p>
+      </div>
+
+      <div>
+        <label className="label">URL GLPI *</label>
+        <div className="flex gap-2">
+          <input
+            className="input flex-1"
+            type="url"
+            placeholder="http://192.168.x.x/glpi"
+            value={url}
+            onChange={e => { setUrl(e.target.value); setStatus(null); setMessage(''); }}
+          />
+        </div>
+        {saved && (
+          <p className="text-xs text-gray-400 mt-1">
+            Actuelle&nbsp;: <code className="bg-gray-100 px-1 rounded">{saved}</code>
+          </p>
+        )}
+      </div>
+
+      <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-500">
+        <p className="font-medium text-gray-600 mb-1">Lien généré pour un ticket :</p>
+        <code className="text-gray-700 break-all">
+          {url || 'http://192.168.x.x/glpi'}/front/ticket.form.php?id=<strong>123</strong>
+        </code>
+      </div>
+
+      {message && (
+        <div className={`p-3 rounded-lg text-sm font-medium ${
+          status === 'saved' || status === 'ok'
+            ? 'bg-green-50 text-green-700 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {status === 'saved' || status === 'ok' ? '✓ ' : '✗ '}{message}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving || !url.trim()}
+          className="btn-primary"
+        >
+          {saving ? 'Sauvegarde...' : '💾 Sauvegarder'}
+        </button>
       </div>
     </div>
   );

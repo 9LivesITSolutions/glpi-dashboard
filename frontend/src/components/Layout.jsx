@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: '📊 Vue globale' },
+  { id: 'dashboard',  label: '📊 Vue globale' },
+  { id: 'tickets',    label: '🎫 Tickets' },
   { id: 'technicien', label: '👤 Stats technicien' },
 ];
 
