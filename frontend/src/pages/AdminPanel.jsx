@@ -13,7 +13,8 @@ export default function AdminPanel() {
 
       <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl w-fit">
         {[
-          { id: 'ldap', label: '🔗 Configuration LDAP' },
+          { id: 'glpi',  label: '🌐 GLPI' },
+          { id: 'ldap',  label: '🔗 Configuration LDAP' },
           { id: 'users', label: '👥 Utilisateurs' },
           { id: 'debug', label: '🔍 Diagnostic LDAP' },
         ].map(tab => (

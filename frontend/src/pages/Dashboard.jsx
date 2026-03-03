@@ -8,6 +8,8 @@ import StatutDonut from '../components/dashboard/StatutDonut';
 import SLAGauge from '../components/dashboard/SLAGauge';
 import ResolutionChart from '../components/dashboard/ResolutionChart';
 import TechnicienChart from '../components/dashboard/TechnicienChart';
+import CategoryPieChart from '../components/dashboard/CategoryPieChart';
+import RequesterTable from '../components/dashboard/RequesterTable';
 import TechnicienStats from './TechnicienStats';
 import AdminPanel from './AdminPanel';
 import TicketsView from './TicketsView';
@@ -57,6 +59,8 @@ export default function Dashboard() {
           axios.get('/resolution/evolution', { params }),
           axios.get('/techniciens',          { params }),
           axios.get('/techniciens/groupes',  { params }),
+          axios.get('/tickets/top-categories', { params }),
+          axios.get('/tickets/top-requesters', { params }),
         ]);
 
       setSummary(summaryRes.data);
@@ -67,6 +71,8 @@ export default function Dashboard() {
       setResEvol(resEvolRes.data);
       setTechniciens(techRes.data);
       setGroupes(grpRes.data);
+      setTopCategories(catRes.data);
+      setTopRequesters(reqRes.data);
       setLastRefresh(new Date());
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur lors du chargement des données GLPI');
@@ -222,6 +228,12 @@ export default function Dashboard() {
 
           {/* ── Charge techniciens ────────────────────────────────────────── */}
           <TechnicienChart data={techniciens} groupData={groupes} loading={loading} />
+
+          {/* ── Top catégories + Top demandeurs ──────────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            <CategoryPieChart data={topCategories} loading={loading} />
+            <RequesterTable   data={topRequesters} loading={loading} />
+          </div>
         </>
       )}
     </Layout>

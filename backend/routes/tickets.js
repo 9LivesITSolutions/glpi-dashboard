@@ -182,80 +182,169 @@ function getDateRange(req) {
 module.exports = router;
 
 // ── GET /api/tickets/list ─────────────────────────────────────────────────────
-// Listing paginé avec filtres statut + tri priorité
+// Listing paginé avec filtres statut/user/catégorie + tri dynamique
 router.get('/list', authMiddleware, async (req, res) => {
   try {
     const { from, to } = getDateRange(req);
     const db = await getGlpiDb();
 
-    const status  = parseInt(req.query.status) || 0;   // 0 = tous
-    const page    = Math.max(1, parseInt(req.query.page) || 1);
-    const limit   = req.query.limit === 'all' ? null : Math.min(500, parseInt(req.query.limit) || 50);
-    const offset  = limit ? (page - 1) * limit : 0;
+    const status   = parseInt(req.query.status) || 0;
+    const page     = Math.max(1, parseInt(req.query.page) || 1);
+    const limit    = req.query.limit === 'all' ? null : Math.min(500, parseInt(req.query.limit) || 50);
+    const offset   = limit ? (page - 1) * limit : 0;
+    const userQ    = req.query.user     ? `%${req.query.user}%`     : null;
+    const catQ     = req.query.category ? `%${req.query.category}%` : null;
 
-    const whereStatus = status > 0 ? 'AND t.status = ?' : '';
-    const params = status > 0
-      ? [from, to, status]
-      : [from, to];
+    // Tri dynamique — whitelist SQL injection
+    const sortMap  = { id:'t.id', title:'t.name', category:'c.name', priority:'t.priority', status:'t.status', created_at:'t.date', updated_at:'t.date_mod' };
+    const sortCol  = sortMap[req.query.sort] || 't.priority';
+    const sortDir  = req.query.dir === 'desc' ? 'DESC' : 'ASC';
 
-    // Total pour pagination
+    // Clauses WHERE/HAVING
+    const whereStatus = status > 0 ? 'AND t.status = ?'    : '';
+    const whereCat    = catQ       ? 'AND c.name LIKE ?'   : '';
+    const havingUser  = userQ      ? 'HAVING technicians LIKE ?' : '';
+
+    const buildParams = (withLimit = false) => {
+      const p = [from, to];
+      if (status > 0) p.push(status);
+      if (catQ)       p.push(catQ);
+      if (userQ)      p.push(userQ);
+      if (withLimit && limit) p.push(limit, offset);
+      return p;
+    };
+
+    // Total
     const [[{ total }]] = await db.execute(`
-      SELECT COUNT(*) AS total
-      FROM glpi_tickets t
-      WHERE t.is_deleted = 0
-        AND t.date >= ? AND t.date <= ?
-        ${whereStatus}
-    `, params);
+      SELECT COUNT(*) AS total FROM (
+        SELECT t.id,
+          GROUP_CONCAT(DISTINCT TRIM(CONCAT(COALESCE(u.realname,''), ' ', COALESCE(u.firstname,''))) SEPARATOR ', ') AS technicians
+        FROM glpi_tickets t
+        LEFT JOIN glpi_itilcategories c ON c.id = t.itilcategories_id
+        LEFT JOIN glpi_tickets_users tu ON tu.tickets_id = t.id AND tu.type = 2
+        LEFT JOIN glpi_users u          ON u.id = tu.users_id
+        WHERE t.is_deleted = 0 AND t.date >= ? AND t.date <= ?
+        ${whereStatus} ${whereCat}
+        GROUP BY t.id
+        ${havingUser}
+      ) sub
+    `, buildParams());
 
-    // Tickets avec technicien et catégorie
-    const limitClause = limit ? `LIMIT ${limit} OFFSET ${offset}` : '';
+    // Listing
+    const limitClause = limit ? 'LIMIT ? OFFSET ?' : '';
     const [rows] = await db.execute(`
       SELECT
-        t.id,
-        t.name                                                          AS title,
-        t.status,
-        t.priority,
-        t.date                                                          AS created_at,
-        t.date_mod                                                      AS updated_at,
-        t.solvedate,
-        COALESCE(c.name, 'Non catégorisé')                             AS category,
+        t.id, t.name AS title, t.status, t.priority,
+        t.date AS created_at, t.date_mod AS updated_at, t.solvedate,
+        COALESCE(c.name, 'Non catégorisé') AS category,
         GROUP_CONCAT(
           DISTINCT TRIM(CONCAT(COALESCE(u.realname,''), ' ', COALESCE(u.firstname,'')))
           ORDER BY u.realname SEPARATOR ', '
-        )                                                               AS technicians
+        ) AS technicians
       FROM glpi_tickets t
       LEFT JOIN glpi_itilcategories c  ON c.id = t.itilcategories_id
       LEFT JOIN glpi_tickets_users tu  ON tu.tickets_id = t.id AND tu.type = 2
       LEFT JOIN glpi_users u           ON u.id = tu.users_id
-      WHERE t.is_deleted = 0
-        AND t.date >= ? AND t.date <= ?
-        ${whereStatus}
+      WHERE t.is_deleted = 0 AND t.date >= ? AND t.date <= ?
+      ${whereStatus} ${whereCat}
       GROUP BY t.id
-      ORDER BY t.priority ASC, t.date DESC
+      ${havingUser}
+      ORDER BY ${sortCol} ${sortDir}
       ${limitClause}
-    `, params);
+    `, buildParams(true));
 
     const PRIORITY_LABELS = { 1:'Très haute', 2:'Haute', 3:'Moyenne', 4:'Basse', 5:'Très basse', 6:'Majeure' };
 
     res.json({
-      total:       parseInt(total),
+      total:   parseInt(total),
       page,
-      limit:       limit || 'all',
-      pages:       limit ? Math.ceil(total / limit) : 1,
+      limit:   limit || 'all',
+      pages:   limit ? Math.ceil(parseInt(total) / limit) : 1,
       tickets: rows.map(r => ({
-        id:          r.id,
-        title:       r.title,
-        status:      r.status,
-        status_label: STATUS_LABELS[r.status] || `Statut ${r.status}`,
-        priority:    r.priority,
+        id:             r.id,
+        title:          r.title,
+        status:         r.status,
+        status_label:   STATUS_LABELS[r.status] || `Statut ${r.status}`,
+        priority:       r.priority,
         priority_label: PRIORITY_LABELS[r.priority] || `P${r.priority}`,
-        category:    r.category,
-        technicians: r.technicians || 'Non assigné',
-        created_at:  r.created_at,
-        updated_at:  r.updated_at,
-        solvedate:   r.solvedate,
+        category:       r.category,
+        technicians:    r.technicians || 'Non assigné',
+        created_at:     r.created_at,
+        updated_at:     r.updated_at,
+        solvedate:      r.solvedate,
       })),
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
+// ── GET /api/tickets/top-categories ──────────────────────────────────────────
+router.get('/top-categories', authMiddleware, async (req, res) => {
+  try {
+    const { from, to } = getDateRange(req);
+    const db = await getGlpiDb();
+    const limit = Math.min(20, parseInt(req.query.limit) || 10);
+
+    const [rows] = await db.execute(`
+      SELECT
+        COALESCE(c.name, 'Non catégorisé') AS name,
+        COUNT(*) AS count
+      FROM glpi_tickets t
+      LEFT JOIN glpi_itilcategories c ON c.id = t.itilcategories_id
+      WHERE t.is_deleted = 0
+        AND t.date >= ? AND t.date <= ?
+      GROUP BY c.id, c.name
+      ORDER BY count DESC
+      LIMIT ?
+    `, [from, to, limit]);
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/tickets/top-requesters ──────────────────────────────────────────
+router.get('/top-requesters', authMiddleware, async (req, res) => {
+  try {
+    const { from, to } = getDateRange(req);
+    const db = await getGlpiDb();
+    const limit = Math.min(50, parseInt(req.query.limit) || 15);
+
+    const [rows] = await db.execute(`
+      SELECT
+        TRIM(CONCAT(COALESCE(u.realname,''), ' ', COALESCE(u.firstname,''))) AS name,
+        u.email,
+        COUNT(DISTINCT t.id)                          AS total,
+        SUM(t.status IN (1,2,3,4))                    AS open,
+        SUM(t.status = 5)                             AS solved,
+        SUM(t.status = 6)                             AS closed,
+        ROUND(AVG(
+          CASE WHEN t.solvedate IS NOT NULL
+            THEN TIMESTAMPDIFF(MINUTE, t.date, t.solvedate)
+          END
+        ) / 60, 1)                                    AS avg_resolution_hours
+      FROM glpi_tickets t
+      LEFT JOIN glpi_tickets_users tu ON tu.tickets_id = t.id AND tu.type = 1
+      LEFT JOIN glpi_users u          ON u.id = tu.users_id
+      WHERE t.is_deleted = 0
+        AND t.date >= ? AND t.date <= ?
+        AND u.id IS NOT NULL
+      GROUP BY u.id, u.realname, u.firstname, u.email
+      ORDER BY total DESC
+      LIMIT ?
+    `, [from, to, limit]);
+
+    res.json(rows.map(r => ({
+      name:                 r.name.trim() || 'Inconnu',
+      email:                r.email || '',
+      total:                parseInt(r.total),
+      open:                 parseInt(r.open),
+      solved:               parseInt(r.solved) + parseInt(r.closed),
+      avg_resolution_hours: r.avg_resolution_hours,
+    })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
