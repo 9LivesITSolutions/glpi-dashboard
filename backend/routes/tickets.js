@@ -196,7 +196,7 @@ router.get('/list', authMiddleware, async (req, res) => {
     const catQ     = req.query.category ? `%${req.query.category}%` : null;
 
     // Tri dynamique — whitelist SQL injection
-    const sortMap  = { id:'t.id', title:'t.name', category:'c.name', priority:'t.priority', status:'t.status', created_at:'t.date', updated_at:'t.date_mod' };
+    const sortMap  = { id:'t.id', title:'t.name', category:'c.name', priority:'t.priority', status:'t.status', created_at:'t.date', updated_at:'t.date_mod', technicians:'technicians' };
     const sortCol  = sortMap[req.query.sort] || 't.priority';
     const sortDir  = req.query.dir === 'desc' ? 'DESC' : 'ASC';
 
@@ -316,7 +316,6 @@ router.get('/top-requesters', authMiddleware, async (req, res) => {
     const [rows] = await db.execute(`
       SELECT
         TRIM(CONCAT(COALESCE(u.realname,''), ' ', COALESCE(u.firstname,''))) AS name,
-        u.email,
         COUNT(DISTINCT t.id)                          AS total,
         SUM(t.status IN (1,2,3,4))                    AS open,
         SUM(t.status = 5)                             AS solved,
@@ -332,14 +331,13 @@ router.get('/top-requesters', authMiddleware, async (req, res) => {
       WHERE t.is_deleted = 0
         AND t.date >= ? AND t.date <= ?
         AND u.id IS NOT NULL
-      GROUP BY u.id, u.realname, u.firstname, u.email
+      GROUP BY u.id, u.realname, u.firstname
       ORDER BY total DESC
       LIMIT ?
     `, [from, to, limit]);
 
     res.json(rows.map(r => ({
       name:                 r.name.trim() || 'Inconnu',
-      email:                r.email || '',
       total:                parseInt(r.total),
       open:                 parseInt(r.open),
       solved:               parseInt(r.solved) + parseInt(r.closed),

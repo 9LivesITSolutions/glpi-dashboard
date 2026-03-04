@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import Layout from '../components/Layout';
 import DateRangePicker from '../components/dashboard/DateRangePicker';
@@ -27,6 +27,9 @@ export default function Dashboard() {
   const [loading, setLoading]           = useState(true);
   const [lastRefresh, setLastRefresh]   = useState(null);
   const [error, setError]               = useState(null);
+  const [autoRefresh, setAutoRefresh]   = useState(0);   // 0 = désactivé, sinon secondes
+  const [customSec, setCustomSec]       = useState('');
+  const intervalRef                     = useRef(null);
 
   // Données
   const [summary, setSummary]       = useState(null);
@@ -36,7 +39,9 @@ export default function Dashboard() {
   const [resAvg, setResAvg]         = useState(null);
   const [resEvol, setResEvol]       = useState([]);
   const [techniciens, setTechniciens] = useState([]);
-  const [groupes, setGroupes]       = useState([]);
+  const [groupes, setGroupes]         = useState([]);
+  const [topCategories, setTopCategories] = useState([]);
+  const [topRequesters, setTopRequesters] = useState([]);
 
   const buildParams = useCallback(() =>
     dateFilter.period === 'custom'
@@ -49,7 +54,7 @@ export default function Dashboard() {
     setError(null);
     const params = buildParams();
     try {
-      const [summaryRes, statusRes, evolutionRes, slaRes, resAvgRes, resEvolRes, techRes, grpRes] =
+      const [summaryRes, statusRes, evolutionRes, slaRes, resAvgRes, resEvolRes, techRes, grpRes, catRes, reqRes] =
         await Promise.all([
           axios.get('/tickets/summary',      { params }),
           axios.get('/tickets/by-status',    { params }),
@@ -97,6 +102,17 @@ export default function Dashboard() {
       }h pause exclue`
     : 'Tickets résolus sur la période';
 
+  // Auto-refresh
+  useEffect(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (autoRefresh > 0) {
+      intervalRef.current = setInterval(() => {
+        if (activeView === 'dashboard') fetchAll();
+      }, autoRefresh * 1000);
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [autoRefresh, activeView, fetchAll]);
+
   return (
     <Layout activeView={activeView} onViewChange={setActiveView}>
 
@@ -140,11 +156,32 @@ export default function Dashboard() {
                 )}
               </p>
             </div>
-            <button onClick={fetchAll} disabled={loading} className="btn-secondary text-sm py-1.5 px-3" title="Actualiser">
-              {loading
-                ? <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin inline-block" />
-                : '🔄'}
-            </button>
+            <div className="flex items-center gap-2">
+              {loading && <span className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />}
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                <span className="text-xs text-gray-500 px-1">🔄</span>
+                {[0, 1, 5, 10, 30].map(s => (
+                  <button key={s} onClick={() => { setAutoRefresh(s); setCustomSec(''); }}
+                    className={`px-2 py-1 text-xs rounded-md transition-all ${autoRefresh === s && customSec === '' ? 'bg-white shadow text-blue-600 font-semibold' : 'text-gray-500 hover:text-gray-700'}`}>
+                    {s === 0 ? 'Off' : s + 's'}
+                  </button>
+                ))}
+                <input
+                  type="number" min="1" max="3600"
+                  placeholder="Xs"
+                  value={customSec}
+                  onChange={e => {
+                    setCustomSec(e.target.value);
+                    const v = parseInt(e.target.value);
+                    if (v > 0) setAutoRefresh(v);
+                  }}
+                  className={`w-12 text-xs text-center border rounded-md py-1 outline-none transition-all ${customSec ? 'border-blue-400 bg-white text-blue-600 font-semibold' : 'border-transparent bg-transparent text-gray-500'}`}
+                />
+              </div>
+              <button onClick={fetchAll} disabled={loading} className="btn-secondary text-xs py-1.5 px-2.5" title="Actualiser maintenant">
+                Manuel
+              </button>
+            </div>
           </div>
 
           <div className="mb-6">

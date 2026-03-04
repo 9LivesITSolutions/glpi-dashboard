@@ -59,7 +59,6 @@ export default function RequesterTable({ data, loading }) {
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-gray-800 truncate">{r.name}</p>
-                        {r.email && <p className="text-xs text-gray-400 truncate">{r.email}</p>}
                       </div>
                     </div>
                   </td>

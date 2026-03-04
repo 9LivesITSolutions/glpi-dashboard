@@ -29,7 +29,7 @@ const COLUMNS = [
   { key: 'category',    label: 'Categorie',  sortable: true,  width: 'w-36', hide: 'md' },
   { key: 'priority',    label: 'Priorite',   sortable: true,  width: 'w-28' },
   { key: 'status',      label: 'Statut',     sortable: true,  width: 'w-36' },
-  { key: 'technicians', label: 'Technicien', sortable: false, width: 'w-36', hide: 'lg' },
+  { key: 'technicians', label: 'Technicien', sortable: true,  width: 'w-36', hide: 'lg' },
   { key: 'created_at',  label: 'Cree le',    sortable: true,  width: 'w-28', hide: 'xl' },
   { key: 'updated_at',  label: 'Modifie le', sortable: true,  width: 'w-28', hide: 'xl' },
 ];
