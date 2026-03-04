@@ -108,7 +108,7 @@ export default function Dashboard() {
     if (autoRefresh > 0) {
       intervalRef.current = setInterval(() => {
         if (activeView === 'dashboard') fetchAll(true);
-        else setRefreshTick(t => t + 1);
+        else { setRefreshTick(t => t + 1); setLastRefresh(new Date()); }
       }, autoRefresh * 1000);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
@@ -164,7 +164,7 @@ export default function Dashboard() {
               />
             </div>
             <button
-              onClick={() => activeView === 'dashboard' ? fetchAll(false) : setRefreshTick(t => t + 1)}
+              onClick={() => activeView === 'dashboard' ? fetchAll(false) : (setRefreshTick(t => t + 1), setLastRefresh(new Date()))}
               disabled={loading}
               className="btn-secondary text-xs py-1.5 px-2.5"
             >
