@@ -27,8 +27,9 @@ export default function Dashboard() {
   const [loading, setLoading]           = useState(true);
   const [lastRefresh, setLastRefresh]   = useState(null);
   const [error, setError]               = useState(null);
-  const [autoRefresh, setAutoRefresh]   = useState(0);   // 0 = désactivé, sinon secondes
+  const [autoRefresh, setAutoRefresh]   = useState(0);
   const [customSec, setCustomSec]       = useState('');
+  const [refreshTick, setRefreshTick]   = useState(0);
   const intervalRef                     = useRef(null);
 
   // Données
@@ -49,9 +50,8 @@ export default function Dashboard() {
       : { period: dateFilter.period }
   , [dateFilter]);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const fetchAll = useCallback(async (silent = false) => {
+    if (!silent) { setLoading(true); setError(null); }
     const params = buildParams();
     try {
       const [summaryRes, statusRes, evolutionRes, slaRes, resAvgRes, resEvolRes, techRes, grpRes, catRes, reqRes] =
@@ -102,12 +102,13 @@ export default function Dashboard() {
       }h pause exclue`
     : 'Tickets résolus sur la période';
 
-  // Auto-refresh
+  // Auto-refresh — toutes les vues, silencieux
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (autoRefresh > 0) {
       intervalRef.current = setInterval(() => {
-        if (activeView === 'dashboard') fetchAll();
+        if (activeView === 'dashboard') fetchAll(true);
+        else setRefreshTick(t => t + 1);
       }, autoRefresh * 1000);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
@@ -116,12 +117,69 @@ export default function Dashboard() {
   return (
     <Layout activeView={activeView} onViewChange={setActiveView}>
 
+      {/* ── Barre actualisation globale ──────────────────────────────────── */}
+      {activeView !== 'admin' && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            {(loading || refreshTick > 0) && autoRefresh > 0 && (
+              <span className="w-3.5 h-3.5 border-2 border-gray-200 border-t-blue-400 rounded-full animate-spin" />
+            )}
+            {lastRefresh && (
+              <span>Actualisé à {lastRefresh.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' })}</span>
+            )}
+            {autoRefresh > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded font-medium">
+                ↺ {autoRefresh}s
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-1">
+              <span className="text-gray-400 text-xs px-1.5">🔄</span>
+              {[0, 1, 5, 10, 30].map(s => (
+                <button key={s}
+                  onClick={() => { setAutoRefresh(s); setCustomSec(''); }}
+                  className={`px-2 py-1 text-xs rounded-md transition-all ${
+                    autoRefresh === s && customSec === ''
+                      ? 'bg-white shadow text-blue-600 font-semibold'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}>
+                  {s === 0 ? 'Off' : s + 's'}
+                </button>
+              ))}
+              <input
+                type="number" min="1" max="3600"
+                placeholder="Xs"
+                value={customSec}
+                onChange={e => {
+                  setCustomSec(e.target.value);
+                  const v = parseInt(e.target.value);
+                  if (v > 0) setAutoRefresh(v);
+                }}
+                className={`w-12 text-xs text-center border rounded-md py-1 outline-none transition-all ${
+                  customSec
+                    ? 'border-blue-400 bg-white text-blue-600 font-semibold shadow'
+                    : 'border-transparent bg-transparent text-gray-500'
+                }`}
+              />
+            </div>
+            <button
+              onClick={() => activeView === 'dashboard' ? fetchAll(false) : setRefreshTick(t => t + 1)}
+              disabled={loading}
+              className="btn-secondary text-xs py-1.5 px-2.5"
+            >
+              {loading ? <span className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin inline-block" /> : '↺ Now'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Vue Admin ─────────────────────────────────────────────────────── */}
       {activeView === 'admin' && <AdminPanel />}
 
       {/* ── Vue Tickets ──────────────────────────────────────────────────── */}
       {activeView === 'tickets' && (
-        <TicketsView dateFilter={dateFilter} onDateChange={setDateFilter} />
+        <TicketsView dateFilter={dateFilter} onDateChange={setDateFilter} refreshTick={refreshTick} />
       )}
 
       {/* ── Vue Stats Technicien ──────────────────────────────────────────── */}
@@ -136,7 +194,7 @@ export default function Dashboard() {
           <div className="mb-5">
             <DateRangePicker value={dateFilter} onChange={setDateFilter} />
           </div>
-          <TechnicienStats dateFilter={dateFilter} />
+          <TechnicienStats dateFilter={dateFilter} refreshTick={refreshTick} />
         </div>
       )}
 
@@ -156,31 +214,9 @@ export default function Dashboard() {
                 )}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              {loading && <span className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />}
-              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                <span className="text-xs text-gray-500 px-1">🔄</span>
-                {[0, 1, 5, 10, 30].map(s => (
-                  <button key={s} onClick={() => { setAutoRefresh(s); setCustomSec(''); }}
-                    className={`px-2 py-1 text-xs rounded-md transition-all ${autoRefresh === s && customSec === '' ? 'bg-white shadow text-blue-600 font-semibold' : 'text-gray-500 hover:text-gray-700'}`}>
-                    {s === 0 ? 'Off' : s + 's'}
-                  </button>
-                ))}
-                <input
-                  type="number" min="1" max="3600"
-                  placeholder="Xs"
-                  value={customSec}
-                  onChange={e => {
-                    setCustomSec(e.target.value);
-                    const v = parseInt(e.target.value);
-                    if (v > 0) setAutoRefresh(v);
-                  }}
-                  className={`w-12 text-xs text-center border rounded-md py-1 outline-none transition-all ${customSec ? 'border-blue-400 bg-white text-blue-600 font-semibold' : 'border-transparent bg-transparent text-gray-500'}`}
-                />
-              </div>
-              <button onClick={fetchAll} disabled={loading} className="btn-secondary text-xs py-1.5 px-2.5" title="Actualiser maintenant">
-                Manuel
-              </button>
+            <div className="flex items-center gap-1 text-xs text-gray-400">
+              {loading && <span className="w-3.5 h-3.5 border-2 border-gray-300 border-t-blue-400 rounded-full animate-spin mr-1" />}
+              {lastRefresh && <span>Actualisé {lastRefresh.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>}
             </div>
           </div>
 

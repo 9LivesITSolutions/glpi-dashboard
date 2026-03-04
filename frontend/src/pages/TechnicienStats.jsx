@@ -9,7 +9,7 @@ import DateRangePicker from '../components/dashboard/DateRangePicker';
 
 const STATUS_COLORS = { 1: '#94a3b8', 2: '#3b82f6', 3: '#6366f1', 4: '#f59e0b', 5: '#22c55e', 6: '#64748b' };
 
-export default function TechnicienStats({ dateFilter, onDateChange }) {
+export default function TechnicienStats({ dateFilter, onDateChange, refreshTick = 0 }) {
   const [techList, setTechList] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [stats, setStats] = useState(null);
@@ -21,28 +21,36 @@ export default function TechnicienStats({ dateFilter, onDateChange }) {
     ? { from: dateFilter.from, to: dateFilter.to }
     : { period: dateFilter.period };
 
-  // Chargement liste techniciens
-  useEffect(() => {
-    setLoadingList(true);
+  const fetchList = useCallback((silent = false) => {
+    if (!silent) setLoadingList(true);
     axios.get('/technicien-stats/list', { params })
       .then(res => {
         setTechList(res.data);
         if (res.data.length && !selectedId) setSelectedId(res.data[0].id);
       })
       .catch(console.error)
-      .finally(() => setLoadingList(false));
-  }, [dateFilter]);
+      .finally(() => { if (!silent) setLoadingList(false); });
+  }, [JSON.stringify(params), selectedId]);
 
-  // Chargement stats du technicien sélectionné
-  useEffect(() => {
+  // Chargement liste techniciens
+  useEffect(() => { fetchList(false); }, [fetchList]);
+
+  const fetchStats = useCallback((silent = false) => {
     if (!selectedId) return;
-    setLoadingStats(true);
-    setStats(null);
+    if (!silent) { setLoadingStats(true); setStats(null); }
     axios.get(`/technicien-stats/${selectedId}`, { params })
       .then(res => setStats(res.data))
       .catch(console.error)
-      .finally(() => setLoadingStats(false));
-  }, [selectedId, dateFilter]);
+      .finally(() => { if (!silent) setLoadingStats(false); });
+  }, [selectedId, JSON.stringify(params)]);
+
+  // Chargement stats du technicien sélectionné
+  useEffect(() => { fetchStats(false); }, [fetchStats]);
+
+  // Silent refresh global
+  useEffect(() => {
+    if (refreshTick > 0) { fetchList(true); fetchStats(true); }
+  }, [refreshTick]);
 
   const filtered = techList.filter(t =>
     t.fullname.toLowerCase().includes(search.toLowerCase()) ||

@@ -34,7 +34,7 @@ const COLUMNS = [
   { key: 'updated_at',  label: 'Modifie le', sortable: true,  width: 'w-28', hide: 'xl' },
 ];
 
-export default function TicketsView({ dateFilter, onDateChange }) {
+export default function TicketsView({ dateFilter, onDateChange, refreshTick = 0 }) {
   const [activeStatus, setActiveStatus] = useState(0);
   const [tickets, setTickets]           = useState([]);
   const [summary, setSummary]           = useState({});
@@ -61,8 +61,8 @@ export default function TicketsView({ dateFilter, onDateChange }) {
     axios.get('/tickets/summary', { params: params }).then(function(r) { setSummary(r.data); }).catch(console.error);
   }, [JSON.stringify(params)]);
 
-  const fetchTickets = useCallback(function() {
-    setLoading(true);
+  const fetchTickets = useCallback(function(silent) {
+    if (!silent) setLoading(true);
     var q = Object.assign({}, params, { page: page, limit: limit, sort: sortKey, dir: sortDir });
     if (activeStatus) q.status = activeStatus;
     if (searchUser)   q.user     = searchUser;
@@ -74,10 +74,15 @@ export default function TicketsView({ dateFilter, onDateChange }) {
         setPages(r.data.pages);
       })
       .catch(console.error)
-      .finally(function() { setLoading(false); });
+      .finally(function() { if (!silent) setLoading(false); });
   }, [JSON.stringify(params), activeStatus, page, limit, sortKey, sortDir, searchUser, searchCat]);
 
-  useEffect(function() { fetchTickets(); }, [fetchTickets]);
+  useEffect(function() { fetchTickets(false); }, [fetchTickets]);
+
+  // Silent refresh déclenché par le parent (auto-refresh global)
+  useEffect(function() {
+    if (refreshTick > 0) fetchTickets(true);
+  }, [refreshTick]);
 
   function handleSort(key) {
     if (!key) return;
