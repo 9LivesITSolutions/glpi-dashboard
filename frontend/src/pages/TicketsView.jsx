@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import DateRangePicker from '../components/dashboard/DateRangePicker';
 
@@ -77,11 +77,15 @@ export default function TicketsView({ dateFilter, onDateChange, refreshTick = 0 
       .finally(function() { if (!silent) setLoading(false); });
   }, [JSON.stringify(params), activeStatus, page, limit, sortKey, sortDir, searchUser, searchCat]);
 
+  // Ref toujours à jour pour le silent refresh (évite la closure périmée)
+  var fetchTicketsRef = useRef(fetchTickets);
+  useEffect(function() { fetchTicketsRef.current = fetchTickets; }, [fetchTickets]);
+
   useEffect(function() { fetchTickets(false); }, [fetchTickets]);
 
-  // Silent refresh déclenché par le parent (auto-refresh global)
+  // Silent refresh déclenché par le parent — utilise la ref pour avoir la version courante
   useEffect(function() {
-    if (refreshTick > 0) fetchTickets(true);
+    if (refreshTick > 0) fetchTicketsRef.current(true);
   }, [refreshTick]);
 
   function handleSort(key) {

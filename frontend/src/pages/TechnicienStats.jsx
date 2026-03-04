@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -47,9 +47,15 @@ export default function TechnicienStats({ dateFilter, onDateChange, refreshTick 
   // Chargement stats du technicien sélectionné
   useEffect(() => { fetchStats(false); }, [fetchStats]);
 
-  // Silent refresh global
+  // Refs toujours à jour pour le silent refresh
+  var fetchListRef  = useRef(fetchList);
+  var fetchStatsRef = useRef(fetchStats);
+  useEffect(() => { fetchListRef.current  = fetchList;  }, [fetchList]);
+  useEffect(() => { fetchStatsRef.current = fetchStats; }, [fetchStats]);
+
+  // Silent refresh déclenché par le parent
   useEffect(() => {
-    if (refreshTick > 0) { fetchList(true); fetchStats(true); }
+    if (refreshTick > 0) { fetchListRef.current(true); fetchStatsRef.current(true); }
   }, [refreshTick]);
 
   const filtered = techList.filter(t =>
