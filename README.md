@@ -1,63 +1,52 @@
-# 📊 GLPI Dashboard
+# glpi-dashboard
 
-> Tableau de bord helpdesk pour GLPI 10.x — KPIs, SLA, stats techniciens, authentification LDAP/AD
+> Helpdesk dashboard for GLPI 10.x — KPIs, SLA, technician statistics, LDAP/AD authentication.
 
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Node.js%20%2B%20MySQL-blue)
 ![Auth](https://img.shields.io/badge/auth-Local%20%2B%20LDAP%20%2F%20AD-green)
 ![Docker](https://img.shields.io/badge/deploy-Docker%20Compose-informational)
-![Licence](https://img.shields.io/badge/licence-MIT-lightgrey)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+[Version française](README.fr.md)
 
 ---
 
-## 📋 Sommaire
+## Overview
 
-- [Aperçu](#-aperçu)
-- [Fonctionnalités](#fonctionnalités)
-- [Architecture](#architecture)
-- [Prérequis](#prérequis)
-- [Installation](#installation)
-- [Configuration initiale — Wizard](#configuration-initiale--wizard)
-- [Administration](#administration)
-- [SLA Manuel](#sla-manuel)
-- [API Reference](#api-reference)
-- [Structure du projet](#structure-du-projet)
-- [Dépannage](#dépannage)
-- [Contact](#contact)
+glpi-dashboard reads the ticket data of an existing GLPI 10.x instance and presents it as a helpdesk dashboard: volumes, statuses, SLA compliance, resolution times and workload per technician or group. The GLPI database is never modified: it is accessed read-only.
 
----
-
-## 📸 Aperçu
-
-### Tableau de bord
 ![Dashboard](docs/screenshot-dashboard.png)
 
-### Page de connexion
 ![Login](docs/screenshot-login.png)
 
 ---
 
-## Fonctionnalités
+## Features
 
-### 📊 Dashboard global
-- **KPIs** : total tickets, résolus/clôturés, taux SLA global, temps moyen de résolution
-- **Évolution temporelle** : volume par jour/semaine/mois (bar chart)
-- **Répartition par statut** : donut chart interactif
-- **SLA par priorité** : progress bars avec délais configurables
-- **Charge technicien/groupe** : horizontal bar chart comparatif
+### Global dashboard
 
-### 👤 Stats par technicien
-- Sélecteur avec recherche dans la liste
-- KPIs individuels + comparaison vs moyenne équipe
-- Évolution activité, répartition statuts/priorités, top catégories traitées
+- **KPIs**: total tickets, resolved/closed, overall SLA rate, average resolution time
+- **Time evolution**: volume per day/week/month (bar chart)
+- **Status breakdown**: interactive donut chart
+- **SLA by priority**: progress bars with configurable targets
+- **Technician/group workload**: comparative horizontal bar chart
 
-### 🗓️ Périodes disponibles
-`Aujourd'hui` · `Cette semaine` · `Ce mois` · `Mois précédent` · `Trimestre` · `Semestre` · `Plage personnalisée`
+### Technician statistics
 
-### 🔐 Authentification
-- **Local** : bcrypt 12 rounds + JWT 8h
-- **Active Directory** : bind via `userPrincipalName` ou `DOMAIN\username`
-- **OpenLDAP** : `member` / `memberUid` / `uniqueMember`
-- **Groupes d'accès** : mapping groupe LDAP → rôle `admin`/`viewer`, recalculé à chaque connexion
+- Selector with search
+- Individual KPIs and comparison with the team average
+- Activity evolution, status/priority breakdown, top handled categories
+
+### Periods
+
+`Today` · `This week` · `This month` · `Last month` · `Quarter` · `Semester` · `Custom range`
+
+### Authentication
+
+- **Local**: bcrypt (12 rounds) + JWT (8 h)
+- **Active Directory**: bind through `userPrincipalName` or `DOMAIN\username`
+- **OpenLDAP**: `member` / `memberUid` / `uniqueMember`
+- **Access groups**: LDAP group to `admin`/`viewer` role mapping, recomputed at each login
 
 ---
 
@@ -68,224 +57,219 @@
 │  Browser — http://IP                                │
 │  React 18 + Recharts + Tailwind CSS                 │
 └────────────────────┬────────────────────────────────┘
-                     │ /api/* (proxy nginx)
+                     │ /api/* (nginx proxy)
 ┌────────────────────▼────────────────────────────────┐
 │  Node.js 20 / Express — port 4000                   │
 │  JWT · bcrypt · ldapjs                              │
 └────────┬────────────────────┬───────────────────────┘
          │                    │
 ┌────────▼──────┐    ┌────────▼──────────────────────┐
-│  MySQL :3307  │    │  MySQL GLPI existant           │
-│  app_config   │    │  ⚠️  LECTURE SEULE             │
-│  app_users    │    │  glpi_tickets + users + groups │
-└───────────────┘    └────────────────────────────────┘
+│  MySQL :3307  │    │  Existing GLPI MySQL          │
+│  app_config   │    │  READ ONLY                    │
+│  app_users    │    │  glpi_tickets + users + groups│
+└───────────────┘    └───────────────────────────────┘
 ```
-
-> La base GLPI n'est **jamais modifiée** — accès en lecture seule uniquement.
 
 ---
 
-## Prérequis
+## Requirements
 
-| Composant | Version minimale |
-|---|---|
-| Docker | 24+ |
-| Docker Compose v2 | `docker compose` (plugin) |
-| MySQL / MariaDB | Serveur GLPI accessible en réseau |
+| Component         | Minimum version                   |
+| ----------------- | --------------------------------- |
+| Docker            | 24+                               |
+| Docker Compose v2 | `docker compose` (plugin)         |
+| MySQL / MariaDB   | GLPI server reachable on the network |
 
 ---
 
 ## Installation
 
-### 1. Cloner le dépôt
+### 1. Clone the repository
 
-```bash
-git clone https://github.com/VOTRE-ORG/glpi-dashboard.git
+```
+git clone https://github.com/9LivesITSolutions/glpi-dashboard.git
 cd glpi-dashboard
 ```
 
-### 2. Créer le fichier `.env`
+### 2. Create the `.env` file
 
-```bash
+```
 cp .env.example .env
 ```
 
-Remplir les valeurs dans `.env` :
+Fill in the values in `.env`:
 
-```env
-# Générer avec : openssl rand -hex 32
-JWT_SECRET=<votre_secret_aleatoire>
+```
+# Generate with: openssl rand -hex 32
+JWT_SECRET=<your_random_secret>
 
-DB_ROOT_PASSWORD=<mot_de_passe_root_mysql>
+DB_ROOT_PASSWORD=<mysql_root_password>
 APP_DB_USER=dashboard_user
-APP_DB_PASSWORD=<mot_de_passe_app>
+APP_DB_PASSWORD=<app_password>
 
 FRONTEND_PORT=80
 ```
 
-> ⚠️ Ne jamais commiter le fichier `.env` — il est dans `.gitignore`.
+> **Warning:** never commit the `.env` file — it is listed in `.gitignore`.
 
-### 3. Lancer les conteneurs
+### 3. Start the containers
 
-```bash
+```
 docker compose up -d --build
 ```
 
-| Conteneur | Port exposé | Rôle |
-|---|---|---|
-| `glpi_dashboard_front` | **80** (configurable) | Interface web |
-| `glpi_dashboard_api` | 4000 (interne) | API REST |
-| `glpi_dashboard_db` | 3307 (local) | MySQL app |
+| Container              | Exposed port          | Role          |
+| ---------------------- | --------------------- | ------------- |
+| `glpi_dashboard_front` | **80** (configurable) | Web interface |
+| `glpi_dashboard_api`   | 4000 (internal)       | REST API      |
+| `glpi_dashboard_db`    | 3307 (local)          | Application MySQL |
 
-### 4. Vérifier le démarrage
+### 4. Check the startup
 
-```bash
+```
 docker compose ps
 docker compose logs backend --tail=20
 ```
 
-Attendu :
+Expected:
+
 ```
 ✅ Bootstrap DB effectué.
 🚀 GLPI Dashboard API démarré sur http://localhost:4000
 ```
 
-### 5. Accéder à l'interface
+### 5. Open the interface
 
-**http://[IP-SERVEUR]** → le wizard de configuration s'affiche automatiquement au premier lancement.
+**http://[SERVER-IP]** — the configuration wizard is displayed automatically on first launch.
 
 ---
 
-## Configuration initiale — Wizard
+## Configuration
 
-### Étape 1 — Base de données GLPI
+### Initial wizard
 
-Créer un utilisateur MySQL **lecture seule** sur le serveur GLPI :
+#### Step 1 — GLPI database
 
-```sql
--- MySQL 8.0+ (deux commandes séparées)
-CREATE USER 'glpi_readonly'@'%' IDENTIFIED BY 'MotDePasseStrong!';
+Create a **read-only** MySQL user on the GLPI server:
+
+```
+-- MySQL 8.0+ (two separate commands)
+CREATE USER 'glpi_readonly'@'%' IDENTIFIED BY 'StrongPassword!';
 GRANT SELECT ON glpi.* TO 'glpi_readonly'@'%';
 FLUSH PRIVILEGES;
 
--- Vérification
+-- Check
 SHOW GRANTS FOR 'glpi_readonly'@'%';
 ```
 
-Renseigner dans le wizard :
+Fill in the wizard:
 
-| Champ | Valeur |
-|---|---|
-| Hôte | IP du serveur MySQL GLPI |
-| Port | `3306` |
-| Base | `glpi` |
-| Utilisateur | `glpi_readonly` |
-| Mot de passe | Le mot de passe choisi |
+| Field    | Value                    |
+| -------- | ------------------------ |
+| Host     | IP of the GLPI MySQL server |
+| Port     | `3306`                   |
+| Database | `glpi`                   |
+| User     | `glpi_readonly`          |
+| Password | The chosen password      |
 
-> ⚠️ Si le hostname du serveur ne résout pas depuis Docker (`EAI_AGAIN`), utiliser son **adresse IP**.
+> **Warning:** if the server hostname does not resolve from Docker (`EAI_AGAIN`), use its **IP address**.
 
-### Étape 2 — LDAP / Active Directory (optionnel)
+#### Step 2 — LDAP / Active Directory (optional)
 
-#### Active Directory
+Active Directory:
 
-| Champ | Exemple | Notes |
-|---|---|---|
-| Type | Active Directory | |
-| Serveur | `192.168.x.x` | IP recommandée |
-| Port | `389` / `636` | 636 = LDAPS |
-| Base DN | `DC=mondomaine,DC=local` | |
-| Bind DN | `CN=svc-glpidashboard,OU=Services,DC=mondomaine,DC=local` | Compte de service |
-| Attribut login | `sAMAccountName` | Standard AD |
+| Field           | Example                                                   | Notes           |
+| --------------- | --------------------------------------------------------- | --------------- |
+| Type            | Active Directory                                          |                 |
+| Server          | `192.168.x.x`                                             | IP recommended  |
+| Port            | `389` / `636`                                             | 636 = LDAPS     |
+| Base DN         | `DC=mydomain,DC=local`                                    |                 |
+| Bind DN         | `CN=svc-glpidashboard,OU=Services,DC=mydomain,DC=local`   | Service account |
+| Login attribute | `sAMAccountName`                                          | AD standard     |
 
-#### OpenLDAP
+OpenLDAP:
 
-| Champ | Valeur |
-|---|---|
-| Attribut login | `uid` |
-| Bind DN | `cn=admin,dc=mondomaine,dc=local` |
+| Field           | Value                             |
+| --------------- | --------------------------------- |
+| Login attribute | `uid`                             |
+| Bind DN         | `cn=admin,dc=mydomain,dc=local`   |
 
-### Étape 3 — Compte administrateur local
+#### Step 3 — Local administrator account
 
-Compte de **secours**, accessible même si le LDAP est indisponible. Minimum 8 caractères.
+**Fallback** account, available even when LDAP is down. Minimum 8 characters.
 
-> 🔐 Conservez ces identifiants précieusement — seul accès possible à l'administration si l'AD est en panne.
+> **Important:** keep these credentials safe — it is the only way into the administration if AD is down.
 
----
+### Administration
 
-## Administration
+Available from **user menu → Administration** (`admin` role only).
 
-Accessible via **menu utilisateur → ⚙️ Administration** (rôle `admin` uniquement).
+#### LDAP configuration
 
-### Configuration LDAP
+Change the LDAP configuration without going through the wizard again. The service account password can be left empty to keep the existing one.
 
-Modifier la configuration LDAP à chaud sans repasser par le wizard. Le mot de passe du compte de service peut être laissé vide pour conserver l'existant.
+#### LDAP access groups
 
-### Groupes d'accès LDAP
-
-Associer des groupes AD/LDAP aux rôles `admin` et `viewer`.
-
-**Logique d'attribution :**
+Map AD/LDAP groups to the `admin` and `viewer` roles.
 
 ```
-Connexion LDAP
+LDAP login
   ↓
-Récupération des groupes de l'utilisateur
-  │  AD       → attribut memberOf
+Fetch the user's groups
+  │  AD       → memberOf attribute
   │  OpenLDAP → member + memberUid + uniqueMember
   ↓
-1. Appartient à un groupe Admin  → rôle admin
-2. Appartient à un groupe Viewer → rôle viewer
-3. Aucune correspondance         → viewer (ou refusé si option activée)
+1. Member of an Admin group  → admin role
+2. Member of a Viewer group  → viewer role
+3. No match                  → viewer (or denied if the option is enabled)
 ```
 
-Format du DN de groupe :
+Group DN format:
+
 ```
-CN=NomDuGroupe,OU=Groupes,DC=mondomaine,DC=local
+CN=GroupName,OU=Groups,DC=mydomain,DC=local
 ```
 
-> Le rôle est **recalculé à chaque connexion** — la révocation dans AD est immédiate.
+> The role is **recomputed at each login**: a revocation in AD takes effect immediately.
 
-**Option "Refuser si aucun groupe"** : si activé, un utilisateur sans groupe correspondant est bloqué.
+**"Deny if no group" option**: when enabled, a user with no matching group is blocked.
 
-### Diagnostic LDAP
+#### LDAP diagnostic
 
-**Administration → 🔍 Diagnostic LDAP**
+**Administration → LDAP Diagnostic** simulates the login step by step. Useful to identify AD configuration problems:
 
-Simule le login étape par étape. Utile pour identifier les problèmes de configuration AD :
+| Step | Checks                                           |
+| ---- | ------------------------------------------------ |
+| 2b   | Service account bind                             |
+| 3b   | User found + `userPrincipalName` retrieved       |
+| 4a   | Chosen bind method (UPN / DOMAIN\user / DN)      |
+| 4    | User bind (password)                             |
+| 5    | Role resolved from groups                        |
 
-| Étape | Vérifie |
-|---|---|
-| 2b | Bind compte de service |
-| 3b | Utilisateur trouvé + `userPrincipalName` récupéré |
-| 4a | Méthode de bind choisie (UPN / DOMAIN\user / DN) |
-| 4 | Bind utilisateur (mot de passe) |
-| 5 | Rôle résolu depuis les groupes |
+#### User management
 
-### Gestion des utilisateurs
+- Create additional local accounts (viewer or admin)
+- Change roles inline (a sync icon = driven by LDAP groups)
+- Delete (except your own account)
 
-- Créer des comptes locaux supplémentaires (viewer ou admin)
-- Modifier les rôles inline (🔄 = piloté par groupes LDAP)
-- Supprimer (sauf son propre compte)
+### Manual SLA
 
----
+SLA computed independently from the GLPI SLA modules.
 
-## SLA Manuel
+Default targets:
 
-Calcul indépendant des modules SLA GLPI.
+| Priority | Label     | Target |
+| -------- | --------- | ------ |
+| 6        | Major     | 2h     |
+| 1        | Very high | 4h     |
+| 2        | High      | 8h     |
+| 3        | Medium    | 24h    |
+| 4        | Low       | 72h    |
+| 5        | Very low  | 168h   |
 
-**Délais par défaut :**
+Change them through the API:
 
-| Priorité | Label | Délai |
-|---|---|---|
-| 6 | Majeure | 2h |
-| 1 | Très haute | 4h |
-| 2 | Haute | 8h |
-| 3 | Moyenne | 24h |
-| 4 | Basse | 72h |
-| 5 | Très basse | 168h |
-
-Modifier via API :
-```bash
+```
 curl -X PUT http://localhost:4000/api/sla/targets \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/json" \
@@ -296,219 +280,179 @@ curl -X PUT http://localhost:4000/api/sla/targets \
 
 ## API Reference
 
-Tous les endpoints KPI acceptent :
+All KPI endpoints accept:
+
 - `?period=today|week|month|last_month|quarter|semester`
 - `?from=YYYY-MM-DD&to=YYYY-MM-DD`
 
 ### Setup
-| Méthode | Endpoint | Description |
-|---|---|---|
-| GET | `/api/setup/status` | Wizard complété ? |
-| POST | `/api/setup/test-db` | Tester connexion GLPI |
-| POST | `/api/setup/save-db` | Sauvegarder config GLPI |
-| POST | `/api/setup/test-ldap` | Tester connexion LDAP |
-| POST | `/api/setup/save-ldap` | Sauvegarder config LDAP |
-| POST | `/api/setup/create-admin` | Créer admin + terminer wizard |
+
+| Method | Endpoint                  | Description                  |
+| ------ | ------------------------- | ---------------------------- |
+| GET    | `/api/setup/status`       | Wizard completed?            |
+| POST   | `/api/setup/test-db`      | Test the GLPI connection     |
+| POST   | `/api/setup/save-db`      | Save the GLPI configuration  |
+| POST   | `/api/setup/test-ldap`    | Test the LDAP connection     |
+| POST   | `/api/setup/save-ldap`    | Save the LDAP configuration  |
+| POST   | `/api/setup/create-admin` | Create admin + finish wizard |
 
 ### Auth
-| Méthode | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/login` | `{ username, password, mode }` → `{ token, user }` |
-| GET | `/api/auth/me` | Utilisateur courant |
-| GET | `/api/auth/ldap-enabled` | `{ enabled: bool }` |
+
+| Method | Endpoint                 | Description                                        |
+| ------ | ------------------------ | -------------------------------------------------- |
+| POST   | `/api/auth/login`        | `{ username, password, mode }` → `{ token, user }` |
+| GET    | `/api/auth/me`           | Current user                                       |
+| GET    | `/api/auth/ldap-enabled` | `{ enabled: bool }`                                |
 
 ### KPIs
-| Méthode | Endpoint | Description |
-|---|---|---|
-| GET | `/api/tickets/summary` | Totaux par statut |
-| GET | `/api/tickets/by-status` | Répartition statuts |
-| GET | `/api/tickets/evolution` | Évolution temporelle |
-| GET | `/api/resolution/average` | Temps moyen de résolution |
-| GET | `/api/resolution/evolution` | Évolution du temps |
-| GET | `/api/sla/summary` | Taux SLA global + par priorité |
-| GET | `/api/sla/targets` | Délais cibles |
-| PUT | `/api/sla/targets` | Modifier les délais |
-| GET | `/api/techniciens` | Charge par technicien |
-| GET | `/api/techniciens/groupes` | Charge par groupe |
-| GET | `/api/technicien-stats/list` | Liste techniciens |
-| GET | `/api/technicien-stats/:userId` | Stats détaillées |
 
-### Admin *(rôle admin requis)*
-| Méthode | Endpoint | Description |
-|---|---|---|
-| GET | `/api/admin/ldap` | Config LDAP actuelle |
-| POST | `/api/admin/ldap/test` | Tester la connexion |
-| POST | `/api/admin/ldap/test-group` | Vérifier un DN de groupe |
-| POST | `/api/admin/ldap/save` | Sauvegarder la config |
-| GET | `/api/admin/users` | Liste des utilisateurs |
-| POST | `/api/admin/users` | Créer un utilisateur local |
-| PUT | `/api/admin/users/:id/role` | Modifier le rôle |
-| PUT | `/api/admin/users/:id/password` | Modifier le mot de passe |
-| DELETE | `/api/admin/users/:id` | Supprimer |
-| POST | `/api/debug/ldap-login` | Diagnostic LDAP pas-à-pas |
+| Method | Endpoint                        | Description                    |
+| ------ | ------------------------------- | ------------------------------ |
+| GET    | `/api/tickets/summary`          | Totals by status               |
+| GET    | `/api/tickets/by-status`        | Status breakdown               |
+| GET    | `/api/tickets/evolution`        | Time evolution                 |
+| GET    | `/api/resolution/average`       | Average resolution time        |
+| GET    | `/api/resolution/evolution`     | Resolution time evolution      |
+| GET    | `/api/sla/summary`              | Global SLA rate + by priority  |
+| GET    | `/api/sla/targets`              | Target times                   |
+| PUT    | `/api/sla/targets`              | Change the target times        |
+| GET    | `/api/techniciens`              | Workload per technician        |
+| GET    | `/api/techniciens/groupes`      | Workload per group             |
+| GET    | `/api/technicien-stats/list`    | Technician list                |
+| GET    | `/api/technicien-stats/:userId` | Detailed statistics            |
+
+### Admin *(admin role required)*
+
+| Method | Endpoint                        | Description                |
+| ------ | ------------------------------- | -------------------------- |
+| GET    | `/api/admin/ldap`               | Current LDAP configuration |
+| POST   | `/api/admin/ldap/test`          | Test the connection        |
+| POST   | `/api/admin/ldap/test-group`    | Check a group DN           |
+| POST   | `/api/admin/ldap/save`          | Save the configuration     |
+| GET    | `/api/admin/users`              | User list                  |
+| POST   | `/api/admin/users`              | Create a local user        |
+| PUT    | `/api/admin/users/:id/role`     | Change the role            |
+| PUT    | `/api/admin/users/:id/password` | Change the password        |
+| DELETE | `/api/admin/users/:id`          | Delete                     |
+| POST   | `/api/debug/ldap-login`         | Step-by-step LDAP diagnostic |
+
+### GLPI tables used *(read-only)*
+
+| Table                 | Usage                              |
+| --------------------- | ---------------------------------- |
+| `glpi_tickets`        | Volume, statuses, priorities, dates |
+| `glpi_tickets_users`  | Technician assignment (type=2)     |
+| `glpi_groups_tickets` | Group assignment (type=2)          |
+| `glpi_users`          | Technician names                   |
+| `glpi_groups`         | Group names                        |
+| `glpi_itilcategories` | Categories (technician view)       |
 
 ---
 
-## Structure du projet
+## Project Structure
 
 ```
 glpi-dashboard/
-├── .env.example             ← Template — copier en .env et remplir
-├── .gitignore
+├── .env.example             # Template — copy to .env and fill in
 ├── docker-compose.yml
 ├── README.md
-│
-├── backend/
+├── README.fr.md
+├── LICENSE
+├── backend/                 # Node.js / Express API
 │   ├── Dockerfile
-│   ├── package.json
 │   ├── server.js
-│   ├── db/
-│   │   ├── appDb.js         Pool MySQL — base app
-│   │   ├── glpiDb.js        Pool MySQL — GLPI (lecture seule)
-│   │   └── bootstrap.js     Init tables au démarrage
-│   ├── middleware/
-│   │   └── auth.js          Vérification JWT
-│   ├── routes/
-│   │   ├── setup.js         Wizard de configuration
-│   │   ├── auth.js          Login + JWT
-│   │   ├── tickets.js       KPIs tickets
-│   │   ├── resolution.js    Temps de résolution
-│   │   ├── techniciens.js   Charge globale
-│   │   ├── technicienStats.js  Stats individuelles
-│   │   ├── sla.js           Calcul SLA
-│   │   ├── admin.js         Panel administration
-│   │   └── debug.js         Diagnostic LDAP
-│   └── services/
-│       ├── ldap.js          Auth LDAP/AD — UPN bind, groupes
-│       └── config.js        app_config CRUD
-│
-└── frontend/
-    ├── Dockerfile
-    ├── nginx.conf           SPA routing + proxy /api/
-    ├── package.json
-    ├── vite.config.js
-    ├── tailwind.config.js
-    └── src/
-        ├── App.jsx          Routing + guards setup/auth
-        ├── context/
-        │   └── AuthContext.jsx
-        ├── pages/
-        │   ├── SetupWizard.jsx
-        │   ├── Login.jsx
-        │   ├── Dashboard.jsx
-        │   ├── TechnicienStats.jsx
-        │   └── AdminPanel.jsx
-        └── components/
-            ├── Layout.jsx
-            ├── wizard/
-            │   ├── StepDatabase.jsx
-            │   ├── StepLDAP.jsx
-            │   └── StepAdmin.jsx
-            └── dashboard/
-                ├── DateRangePicker.jsx
-                ├── KPICard.jsx
-                ├── TicketsChart.jsx
-                ├── StatutDonut.jsx
-                ├── SLAGauge.jsx
-                ├── ResolutionChart.jsx
-                └── TechnicienChart.jsx
+│   ├── db/                  # appDb.js, glpiDb.js (read-only), bootstrap.js
+│   ├── middleware/          # auth.js (JWT check)
+│   ├── routes/              # setup, auth, tickets, resolution, techniciens, technicienStats, sla, admin, debug
+│   └── services/            # ldap.js (LDAP/AD auth), config.js (app_config CRUD)
+├── frontend/                # React 18 + Vite + Tailwind
+│   ├── Dockerfile
+│   ├── nginx.conf           # SPA routing + /api/ proxy
+│   └── src/                 # pages, components (wizard, dashboard), context
+└── docs/                    # Screenshots
 ```
 
 ---
 
-## Tables GLPI utilisées *(lecture seule)*
+## Troubleshooting
 
-| Table | Usage |
-|---|---|
-| `glpi_tickets` | Volume, statuts, priorités, dates |
-| `glpi_tickets_users` | Assignation techniciens (type=2) |
-| `glpi_groups_tickets` | Assignation groupes (type=2) |
-| `glpi_users` | Noms des techniciens |
-| `glpi_groups` | Noms des groupes |
-| `glpi_itilcategories` | Catégories (vue technicien) |
+### Backend does not start
 
----
-
-## Dépannage
-
-### Backend ne démarre pas
-```bash
+```
 docker compose logs backend --tail=30
 ```
-| Erreur | Cause | Solution |
-|---|---|---|
-| `Access denied` | Mauvais credentials DB | Vérifier les variables `APP_DB_*` dans `.env` |
-| `ECONNREFUSED` | Base app pas prête | Attendre que `app-db` soit healthy |
-| `Cannot find module` | Image obsolète | `docker compose up -d --build` |
 
-### Erreur 502 sur l'interface
-```bash
+| Error                | Cause                  | Solution                                       |
+| -------------------- | ---------------------- | ---------------------------------------------- |
+| `Access denied`      | Wrong DB credentials   | Check the `APP_DB_*` variables in `.env`       |
+| `ECONNREFUSED`       | Application DB not ready | Wait until `app-db` is healthy               |
+| `Cannot find module` | Outdated image         | `docker compose up -d --build`                 |
+
+### 502 error on the interface
+
+```
 docker compose logs backend --tail=50
 ```
 
-### Permission denied sur `docker`
-```bash
+### Permission denied on `docker`
+
+```
 sudo usermod -aG docker $USER && newgrp docker
 ```
 
-### Hostname GLPI non résolu dans Docker (`EAI_AGAIN`)
-Utiliser l'adresse IP plutôt que le hostname, ou ajouter dans `docker-compose.yml` :
-```yaml
+### GLPI hostname not resolved in Docker (`EAI_AGAIN`)
+
+Use the IP address instead of the hostname, or add to `docker-compose.yml`:
+
+```
 backend:
   extra_hosts:
-    - "nom-serveur-glpi:192.168.x.x"
+    - "glpi-server-name:192.168.x.x"
 ```
 
-### Réinitialiser le wizard
-```sql
+### Reset the wizard
+
+```
 UPDATE app_config SET `value` = 'false' WHERE `key` = 'setup_completed';
 ```
 
-### Inspecter la base app (DBeaver / TablePlus)
+### Inspect the application database (DBeaver / TablePlus)
+
 ```
 Host: localhost  |  Port: 3307
 Database: glpi_dashboard_app
-User / Password: voir votre .env
+User / Password: see your .env
 ```
 
 ---
 
-## Sécurité
+## Security
 
-- Base GLPI accédée en **lecture seule** — aucune écriture
-- Mots de passe hashés **bcrypt 12 rounds**
-- Tokens **JWT signés** avec secret aléatoire — regénérer en production
-- Mot de passe LDAP **jamais retourné** par l'API
-- Endpoint `/api/debug/ldap-login` **réservé aux admins** authentifiés
-- Rôles LDAP **recalculés à chaque connexion** — pas de persistance de privilèges
-
----
-
-## Contribuer
-
-Les contributions sont les bienvenues. Pour les changements majeurs, ouvrir une *issue* d'abord.
-
-1. Fork du repo
-2. Créer une branche : `git checkout -b feature/ma-feature`
-3. Commit : `git commit -m 'feat: description'`
-4. Push : `git push origin feature/ma-feature`
-5. Ouvrir une Pull Request
+- GLPI database accessed **read-only**: no write
+- Passwords hashed with **bcrypt (12 rounds)**
+- **Signed JWT** tokens with a random secret — regenerate it in production
+- LDAP password **never returned** by the API
+- `/api/debug/ldap-login` endpoint **restricted to authenticated admins**
+- LDAP roles **recomputed at each login**: no persistence of privileges
 
 ---
 
-## Contact
+## Contributing
 
-> ✏️ *Remplir cette section avec les informations de l'équipe responsable.*
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Commit your changes (`git commit -m 'feat: add my-feature'`)
+4. Push to the branch (`git push origin feature/my-feature`)
+5. Open a Pull Request
 
-| | |
-|---|---|
-| **Responsable** | Prénom NOM — prenom.nom@entreprise.fr |
-| **Équipe** | Équipe DSI — Pôle Infrastructure |
-| **Organisation GitHub** | [github.com/VOTRE-ORG](https://github.com/VOTRE-ORG) |
-| **Issues** | [github.com/VOTRE-ORG/glpi-dashboard/issues](https://github.com/VOTRE-ORG/glpi-dashboard/issues) |
+Please follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages. For major changes, open an issue first.
 
 ---
 
-## Licence
+## License
 
-MIT — voir [LICENSE](LICENSE)
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+---
+
+Maintained by **9 Lives IT Solutions** — Healthcare IT & Infrastructure Automation.
